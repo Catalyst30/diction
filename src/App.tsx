@@ -4,22 +4,22 @@ import {
   Wallet,
   Calendar,
   AlertTriangle,
-  ArrowUpRight,
   ArrowDownLeft,
   DollarSign,
   TrendingUp,
   Clock,
   Sparkles,
-  Database,
   CheckCircle2,
   Lock,
   ChevronRight,
-  RefreshCw,
   Plus,
   Send,
-  Zap,
-  Sliders,
-  Check
+  X,
+  MessageCircle,
+  Trash2,
+  Settings,
+  HelpCircle,
+  ChevronDown
 } from 'lucide-react';
 
 interface Bill {
@@ -27,9 +27,7 @@ interface Bill {
   name: string;
   amount: number;
   dueDate: string;
-  category: string;
-  status: 'paid' | 'pending' | 'urgent';
-  aligned: boolean;
+  recurring: 'monthly' | 'one-time';
 }
 
 interface ClientPayment {
@@ -38,908 +36,1217 @@ interface ClientPayment {
   amount: number;
   expectedDate: string;
   historicalLagDays: number;
-  status: 'received' | 'pending' | 'delayed';
-  invoiceId: string;
+  reliabilityScore: number;
+  status: 'received' | 'pending';
 }
 
-interface RpcInfo {
-  status: string;
-  blockNumber: number | null;
-  gasPriceWei: number | null;
-  chain: string;
-  timestamp?: string;
-  message?: string;
+interface PaymentBreakdown {
+  total: number;
+  client: string;
+  tax: number;
+  bills: number;
+  paycheck: number;
+  buffer: number;
+  safeSpend: number;
 }
+
+interface MemoryItem {
+  id: string;
+  type: string;
+  text: string;
+  createdAt: string;
+  status: string;
+  blobId?: string;
+}
+
+const COUNTRIES = [
+  'United States',
+  'United Kingdom',
+  'Canada',
+  'Australia',
+  'Germany',
+  'France',
+  'Spain',
+  'Netherlands',
+  'Singapore',
+  'Japan',
+  'Brazil',
+  'India',
+  'Other'
+];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'bills' | 'salary' | 'walrus' | 'gap-cover'>('overview');
-  const [targetMonths, setTargetMonths] = useState<number>(2);
-  const [taxWithholdingPct, setTaxWithholdingPct] = useState<number>(25);
-  const [monthlySalary, setMonthlySalary] = useState<number>(3200);
-  const [holdingBalance, setHoldingBalance] = useState<number>(6850);
-  const [showAdvanceModal, setShowAdvanceModal] = useState<boolean>(false);
-  const [advanceAmount, setAdvanceAmount] = useState<number>(1400);
-  const [showInflowModal, setShowInflowModal] = useState<boolean>(false);
-  const [newInflowAmount, setNewInflowAmount] = useState<number>(2500);
-  const [newInflowClient, setNewInflowClient] = useState<string>('Venture Labs');
-  const [rpcData, setRpcData] = useState<RpcInfo | null>(null);
-  const [rpcLoading, setRpcLoading] = useState<boolean>(false);
-  const [walrusSyncStatus, setWalrusSyncStatus] = useState<'synced' | 'syncing'>('synced');
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [navTab, setNavTab] = useState<'home' | 'bills' | 'taxes' | 'paycheck' | 'learned' | 'settings'>('home');
+
+  const [isSetupDone, setIsSetupDone] = useState<boolean>(true);
+  const [setupStep, setSetupStep] = useState<number>(1);
+  const [userName, setUserName] = useState<string>('Alex');
+  const [country, setCountry] = useState<string>('United States');
+  const [taxRate, setTaxRate] = useState<number>(25);
+  const [targetPaycheck, setTargetPaycheck] = useState<number>(3200);
+  const [paydayDay, setPaydayDay] = useState<number>(1);
+
+  const [bufferBalance, setBufferBalance] = useState<number>(6850);
+  const [taxSetAside, setTaxSetAside] = useState<number>(1712);
+  const [paycheckFunded, setPaycheckFunded] = useState<number>(3200);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [bills, setBills] = useState<Bill[]>([
-    { id: 'b1', name: 'Apartment Rent', amount: 1400, dueDate: '2026-11-05', category: 'Housing', status: 'urgent', aligned: false },
-    { id: 'b2', name: 'Health Insurance & Clinic Fund', amount: 380, dueDate: '2026-11-12', category: 'Healthcare', status: 'pending', aligned: true },
-    { id: 'b3', name: 'Creative Studio Software & Cloud', amount: 145, dueDate: '2026-11-18', category: 'Tools', status: 'pending', aligned: true },
-    { id: 'b4', name: 'High-speed Fiber Internet', amount: 85, dueDate: '2026-11-20', category: 'Utilities', status: 'pending', aligned: false },
-    { id: 'b5', name: 'Freelancer Retirement & Emergency Seed', amount: 300, dueDate: '2026-11-28', category: 'Savings', status: 'pending', aligned: true },
+    { id: 'b1', name: 'Apartment Rent', amount: 1400, dueDate: '2026-11-05', recurring: 'monthly' },
+    { id: 'b2', name: 'Health Insurance', amount: 380, dueDate: '2026-11-12', recurring: 'monthly' },
+    { id: 'b3', name: 'Software & Tools', amount: 145, dueDate: '2026-11-18', recurring: 'monthly' },
+    { id: 'b4', name: 'Fiber Internet', amount: 85, dueDate: '2026-11-20', recurring: 'monthly' },
   ]);
 
   const [clients, setClients] = useState<ClientPayment[]>([
-    { id: 'c1', client: 'Apex Interactive Studio', amount: 3800, expectedDate: '2026-11-08', historicalLagDays: 14, status: 'delayed', invoiceId: 'INV-2026-88' },
-    { id: 'c2', client: 'Nordic Brand House', amount: 1950, expectedDate: '2026-11-22', historicalLagDays: 3, status: 'pending', invoiceId: 'INV-2026-94' },
-    { id: 'c3', client: 'HyperFlow Media', amount: 1200, expectedDate: '2026-10-28', historicalLagDays: 21, status: 'received', invoiceId: 'INV-2026-81' },
+    { id: 'c1', client: 'Apex Studio', amount: 3800, expectedDate: '2026-11-08', historicalLagDays: 14, reliabilityScore: 0.65, status: 'pending' },
+    { id: 'c2', client: 'Nordic Brand House', amount: 1950, expectedDate: '2026-11-22', historicalLagDays: 3, reliabilityScore: 0.90, status: 'pending' },
+    { id: 'c3', client: 'HyperFlow Media', amount: 1200, expectedDate: '2026-10-28', historicalLagDays: 21, reliabilityScore: 0.70, status: 'received' },
   ]);
 
-  const fetchRpc = async () => {
-    setRpcLoading(true);
-    try {
-      const res = await fetch('/api/tatum/rpc-status');
-      const data = await res.json();
-      setRpcData(data);
-    } catch {
-      setRpcData({ status: 'error', blockNumber: null, gasPriceWei: null, chain: 'ethereum-mainnet' });
-    } finally {
-      setRpcLoading(false);
-    }
+  const [showLogPayment, setShowLogPayment] = useState<boolean>(false);
+  const [logAmount, setLogAmount] = useState<number>(1000);
+  const [logClientName, setLogClientName] = useState<string>('Apex Studio');
+  const [recentBreakdown, setRecentBreakdown] = useState<PaymentBreakdown | null>(null);
+
+  const [connectedWallets, setConnectedWallets] = useState<Array<{ address: string; type: 'Sui' | 'EVM'; balance: number }>>([
+    { address: '0x3a4f...89e1', type: 'Sui', balance: 2450 },
+    { address: '0x71C...a42B', type: 'EVM', balance: 1800 }
+  ]);
+  const [showConnectWallet, setShowConnectWallet] = useState<boolean>(false);
+  const [newWalletAddress, setNewWalletAddress] = useState<string>('');
+  const [newWalletType, setNewWalletType] = useState<'Sui' | 'EVM'>('Sui');
+
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [memoryInput, setMemoryInput] = useState<string>('');
+  const [adminBlobProof, setAdminBlobProof] = useState<Array<{ timestamp: string; blobId: string; status: string }>>([]);
+  const [showAdminProofs, setShowAdminProofs] = useState<boolean>(false);
+
+  const [isAssistantOpen, setIsAssistantOpen] = useState<boolean>(false);
+  const [chatLog, setChatLog] = useState<Array<{ sender: 'user' | 'assistant'; text: string }>>([
+    { sender: 'assistant', text: `Hello Alex! I am your Diction guide. You can ask me anytime if you can afford to spend, or tap any of the quick questions below.` }
+  ]);
+  const [chatQuestion, setChatQuestion] = useState<string>('');
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   useEffect(() => {
-    fetchRpc();
+    fetch('/api/tatum/memories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.memories) setMemories(data.memories);
+      })
+      .catch(() => {});
+
+    fetch('/api/tatum/admin/audit-blobs')
+      .then(res => res.json())
+      .then(data => {
+        if (data.auditLog) setAdminBlobProof(data.auditLog);
+      })
+      .catch(() => {});
   }, []);
 
-  const triggerToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
+  const billsDueBeforePayday = bills.reduce((acc, b) => acc + b.amount, 0);
+
+  const pendingIncome = clients.filter(c => c.status === 'pending');
+  const conservativeExpectedIncome = pendingIncome.reduce(
+    (acc, c) => acc + Math.round(c.amount * c.reliabilityScore),
+    0
+  );
+
+  const rawSafeToSpend = bufferBalance - billsDueBeforePayday - taxSetAside - targetPaycheck + conservativeExpectedIncome;
+  const safeToSpend = Math.max(0, rawSafeToSpend);
+  const isGapAlert = rawSafeToSpend < 0;
+
+  const processNewPayment = (amount: number, clientName: string) => {
+    const taxPart = Math.round(amount * (taxRate / 100));
+    let remaining = amount - taxPart;
+
+    const billsNeeded = Math.max(0, billsDueBeforePayday - (bufferBalance * 0.3));
+    const billsPart = Math.min(remaining, Math.round(billsNeeded * 0.5));
+    remaining -= billsPart;
+
+    const paycheckNeeded = Math.max(0, targetPaycheck - paycheckFunded);
+    const paycheckPart = Math.min(remaining, paycheckNeeded);
+    remaining -= paycheckPart;
+
+    const bufferPart = Math.round(remaining * 0.6);
+    const safeSpendPart = remaining - bufferPart;
+
+    setTaxSetAside(prev => prev + taxPart);
+    setBufferBalance(prev => prev + bufferPart + billsPart);
+    setPaycheckFunded(prev => prev + paycheckPart);
+
+    const breakdown: PaymentBreakdown = {
+      total: amount,
+      client: clientName,
+      tax: taxPart,
+      bills: billsPart,
+      paycheck: paycheckPart,
+      buffer: bufferPart,
+      safeSpend: safeSpendPart
+    };
+
+    setRecentBreakdown(breakdown);
+
+    fetch('/api/tatum/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'payment_received',
+        text: `Received $${amount.toLocaleString()} from ${clientName}. Tax set aside: $${taxPart}. Added to buffer: $${bufferPart}.`
+      })
+    })
+      .then(res => res.json())
+      .then(d => {
+        if (d?.memory) setMemories(prev => [d.memory, ...prev]);
+      })
+      .catch(() => {});
+
+    showToast(`Payment of $${amount.toLocaleString()} received and sorted safely.`);
   };
 
-  const syncWalrus = () => {
-    setWalrusSyncStatus('syncing');
-    setTimeout(() => {
-      setWalrusSyncStatus('synced');
-      triggerToast('Client payment patterns and buffer rules synchronized to Walrus blob');
-    }, 1200);
+  const handleAskAssistant = async (queryText: string) => {
+    if (!queryText.trim()) return;
+    const userQ = queryText.trim();
+    setChatLog(prev => [...prev, { sender: 'user', text: userQ }]);
+    setChatQuestion('');
+
+    try {
+      const res = await fetch('/api/tatum/ask-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: userQ,
+          userContext: {
+            safeToSpend,
+            buffer: bufferBalance,
+            upcomingBills: billsDueBeforePayday,
+            nextPaycheck: targetPaycheck,
+            userName
+          }
+        })
+      });
+      const data = await res.json();
+      setChatLog(prev => [...prev, { sender: 'assistant', text: data.answer || 'I am here to help you budget safely.' }]);
+    } catch {
+      setChatLog(prev => [
+        ...prev,
+        {
+          sender: 'assistant',
+          text: `You have $${safeToSpend.toLocaleString()} safe to spend today. All your upcoming bills and paycheck are covered. (Estimate only)`
+        }
+      ]);
+    }
   };
 
-  const handleAlignBill = (billId: string) => {
-    setBills(prev =>
-      prev.map(b => b.id === billId ? { ...b, aligned: true, dueDate: '2026-11-25' } : b)
-    );
-    triggerToast('Bill due date shifted post client payment window');
+  const deleteMemory = (id: string) => {
+    fetch(`/api/tatum/memories/${id}`, { method: 'DELETE' });
+    setMemories(prev => prev.filter(m => m.id !== id));
+    showToast('Memory removed.');
   };
-
-  const handleDepositInflow = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newInflowAmount <= 0) return;
-    setHoldingBalance(prev => prev + newInflowAmount);
-    setClients(prev => [
-      {
-        id: `c-${Date.now()}`,
-        client: newInflowClient,
-        amount: newInflowAmount,
-        expectedDate: '2026-11-03',
-        historicalLagDays: 0,
-        status: 'received',
-        invoiceId: `INV-${Math.floor(1000 + Math.random() * 9000)}`
-      },
-      ...prev
-    ]);
-    setShowInflowModal(false);
-    triggerToast(`$${newInflowAmount.toLocaleString()} lumpy payment routed to Holding Buffer`);
-  };
-
-  const handleDrawAdvance = () => {
-    setHoldingBalance(prev => prev + advanceAmount);
-    setShowAdvanceModal(false);
-    triggerToast(`$${advanceAmount.toLocaleString()} short-gap bridge deployed into buffer`);
-  };
-
-  const fixedMonthlyExpenses = bills.reduce((acc, b) => acc + b.amount, 0);
-  const billsNext30Days = fixedMonthlyExpenses;
-  const taxReserveAmount = Math.round(holdingBalance * (taxWithholdingPct / 100));
-  const bufferTargetTotal = fixedMonthlyExpenses * targetMonths;
-  const bufferFillPct = Math.min(100, Math.round((holdingBalance / bufferTargetTotal) * 100));
-  const committedReserves = billsNext30Days + taxReserveAmount;
-  const safeToSpend = Math.max(0, holdingBalance - committedReserves);
 
   return (
-    <div className="min-h-screen bg-secondary text-primary font-sans flex flex-col">
-      {/* Toast */}
-      {toastMsg && (
-        <div className="fixed top-4 right-4 z-50 bg-primary border border-secondary shadow-lg rounded-lg p-md text-xs font-semibold text-primary flex items-center gap-xs">
-          <CheckCircle2 className="w-4 h-4 text-success-primary shrink-0" />
-          <span>{toastMsg}</span>
+    <div className="min-h-screen bg-secondary text-primary font-sans flex flex-col text-lg">
+      {/* 1. Toast Recipe: bg-primary, border-secondary, shadow-lg, rounded-lg, text-fg-success-primary icon */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 flex items-start gap-sm rounded-lg border border-secondary bg-primary p-lg shadow-lg max-w-md">
+          <CheckCircle2 className="mt-xxs size-6 shrink-0 text-fg-success-primary" />
+          <p className="text-md font-semibold text-secondary">{toastMessage}</p>
         </div>
       )}
 
-      {/* Top Navigation */}
+      {/* Top Header */}
       <header className="border-b border-secondary bg-primary sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-xl py-md flex items-center justify-between">
-          <div className="flex items-center gap-md">
-            <div className="w-10 h-10 rounded-lg bg-brand-solid flex items-center justify-center text-primary-on-brand shadow-xs">
-              <Shield className="w-5 h-5 shrink-0" />
-            </div>
+        <div className="max-w-7xl mx-auto px-xl py-lg flex items-center justify-between">
+          <div className="flex items-center gap-lg">
+            {/* Featured Icon Recipe: rounded-full bg-brand-solid size-14 */}
+            <span className="flex size-14 items-center justify-center rounded-full bg-brand-solid text-primary-on-brand shadow-xs shrink-0">
+              <Shield className="size-8 shrink-0 text-fg-white" />
+            </span>
             <div>
-              <div className="flex items-center gap-xs">
-                <span className="text-heading-xs font-bold tracking-tight">diction</span>
-                <span className="bg-utility-brand-50 border border-utility-brand-200 text-utility-brand-700 text-xs px-xs py-xxs rounded-md font-medium">
-                  Irregular Income Buffer
-                </span>
-              </div>
-              <p className="text-xs text-tertiary">Smooth out feast and famine for creators & gig workers</p>
+              <span className="text-heading-md font-bold tracking-tight">Diction</span>
+              <p className="text-md text-secondary font-medium">Earn and spend wisely, without going broke.</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-sm">
-            {/* Live Tatum RPC indicator */}
+          <div className="flex items-center gap-md">
+            {/* Button Recipe (Secondary): rounded-lg bg-primary px-lg py-sm font-semibold text-secondary border border-primary shadow-xs */}
             <button
-              onClick={fetchRpc}
-              title="Click to re-fetch live Tatum RPC state"
-              className="hidden md:flex items-center gap-xs px-md py-xs rounded-md bg-secondary hover:bg-secondary-hover border border-secondary text-xs"
+              onClick={() => setShowConnectWallet(true)}
+              className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              <span className={`w-2 h-2 rounded-full ${rpcData?.blockNumber ? 'bg-success-primary animate-pulse' : 'bg-warning-primary'}`} />
-              <span className="text-secondary font-medium">Tatum RPC</span>
-              <span className="text-tertiary">
-                {rpcLoading ? 'Fetching...' : rpcData?.blockNumber ? `Block #${rpcData.blockNumber.toLocaleString()}` : 'Connected'}
-              </span>
+              <Wallet className="size-6 text-brand-primary shrink-0" />
+              <span>Wallets ({connectedWallets.length})</span>
             </button>
-
-            {/* Walrus Blob State */}
             <button
-              onClick={syncWalrus}
-              className="flex items-center gap-xs px-md py-xs rounded-md bg-utility-brand-50 hover:bg-utility-brand-200 border border-utility-brand-200 text-xs text-utility-brand-700 font-medium"
+              onClick={() => setNavTab('settings')}
+              className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              title="Settings"
             >
-              <Database className={`w-3.5 h-3.5 shrink-0 ${walrusSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-              <span>{walrusSyncStatus === 'syncing' ? 'Syncing Walrus...' : 'Walrus Memory Active'}</span>
+              <Settings className="size-6 text-secondary shrink-0" />
+              <span className="hidden sm:inline">Settings</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-xl py-xl space-y-xl">
-        {/* Cash Flow Warning / AI Advisor Notification */}
-        <div className="bg-utility-warning-50 border border-utility-warning-200 rounded-lg p-lg flex flex-col md:flex-row md:items-center justify-between gap-md">
-          <div className="flex items-start gap-md">
-            <div className="p-xs rounded-md bg-warning-secondary text-warning-primary shrink-0 mt-xxs">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-            </div>
-            <div>
-              <div className="flex items-center gap-xs">
-                <h4 className="text-sm font-semibold text-primary">Cash-Flow Timing Gap Alert: Rent due in 2 days</h4>
-                <span className="bg-utility-error-50 border border-error-subtle text-error-primary text-xs px-xs rounded font-medium">
-                  Client Delay Risk
-                </span>
-              </div>
-              <p className="text-xs text-secondary mt-xxs">
-                Apex Interactive typically pays 14 days late (expected Nov 8, historical delay pushes to Nov 22). Rent of $1,400 lands Nov 5. Your holding account buffer covers this completely without dipping into tax reserves or debt.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-sm shrink-0">
-            <button
-              onClick={() => setShowAdvanceModal(true)}
-              className="px-md py-xs rounded-md bg-brand-solid text-primary-on-brand hover:bg-brand-solid-hover text-xs font-semibold shadow-xs flex items-center gap-xs"
-            >
-              <Zap className="w-3.5 h-3.5 shrink-0" />
-              Bridge with Gap Cover ($0 Fee)
-            </button>
-          </div>
-        </div>
-
-        {/* Primary Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-lg">
-          {/* 1. Holding Pool Balance */}
-          <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-tertiary uppercase tracking-wider">Holding Pool (The Buffer)</span>
-              <div className="w-8 h-8 rounded-md bg-utility-brand-50 text-utility-brand-700 flex items-center justify-center">
-                <Wallet className="w-4 h-4 shrink-0" />
-              </div>
-            </div>
-            <div className="mt-md">
-              <div className="text-heading-md font-bold text-primary">
-                ${holdingBalance.toLocaleString()}
-              </div>
-              <p className="text-xs text-secondary mt-xxs">
-                All lumpy income lands here first
-              </p>
-            </div>
-            <div className="mt-md pt-md border-t border-secondary flex items-center justify-between text-xs text-tertiary">
-              <span>Target: ${bufferTargetTotal.toLocaleString()} ({targetMonths} mo)</span>
-              <span className="text-success-primary font-semibold">{bufferFillPct}% funded</span>
-            </div>
-          </div>
-
-          {/* 2. Safe to Spend Calculator */}
-          <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-tertiary uppercase tracking-wider">True Safe-to-Spend</span>
-              <div className="w-8 h-8 rounded-md bg-utility-success-50 text-utility-success-700 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 shrink-0" />
-              </div>
-            </div>
-            <div className="mt-md">
-              <div className="text-heading-md font-bold text-success-primary">
-                ${safeToSpend.toLocaleString()}
-              </div>
-              <p className="text-xs text-secondary mt-xxs">
-                After bills & taxes withheld
-              </p>
-            </div>
-            <div className="mt-md pt-md border-t border-secondary flex items-center justify-between text-xs text-tertiary">
-              <span>Next 30d bills: ${billsNext30Days}</span>
-              <span>Taxes: ${taxReserveAmount}</span>
-            </div>
-          </div>
-
-          {/* 3. Self-Paid Salary */}
-          <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-tertiary uppercase tracking-wider">Monthly Self-Salary</span>
-              <div className="w-8 h-8 rounded-md bg-utility-gray-50 text-utility-gray-700 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 shrink-0" />
-              </div>
-            </div>
-            <div className="mt-md">
-              <div className="text-heading-md font-bold text-primary">
-                ${monthlySalary.toLocaleString()}
-              </div>
-              <p className="text-xs text-secondary mt-xxs">
-                Paid on 1st of every month
-              </p>
-            </div>
-            <div className="mt-md pt-md border-t border-secondary flex items-center justify-between text-xs text-tertiary">
-              <span>Next transfer in 28 days</span>
-              <span className="text-brand-primary font-medium">Automatic</span>
-            </div>
-          </div>
-
-          {/* 4. Tax Buffer Locked */}
-          <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-tertiary uppercase tracking-wider">Tax Surprise Shield</span>
-              <div className="w-8 h-8 rounded-md bg-utility-brand-50 text-utility-brand-700 flex items-center justify-center">
-                <Lock className="w-4 h-4 shrink-0" />
-              </div>
-            </div>
-            <div className="mt-md">
-              <div className="text-heading-md font-bold text-primary">
-                ${taxReserveAmount.toLocaleString()}
-              </div>
-              <p className="text-xs text-secondary mt-xxs">
-                {taxWithholdingPct}% auto-quarantined
-              </p>
-            </div>
-            <div className="mt-md pt-md border-t border-secondary flex items-center justify-between text-xs text-tertiary">
-              <span>Untouchable for bills</span>
-              <span className="text-secondary font-medium">Q4 Tax Ready</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-xs border-b border-secondary">
+      {/* 2. Tabs Recipe: baseline divider border-b border-secondary, selected tab border-b-2 border-brand text-brand-primary */}
+      <nav className="bg-primary border-b border-secondary">
+        <div className="max-w-7xl mx-auto px-xl flex items-center gap-lg overflow-x-auto">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-lg py-sm text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'overview'
+            onClick={() => setNavTab('home')}
+            className={`min-h-[56px] px-md py-sm text-lg font-semibold border-b-2 transition-colors flex items-center gap-sm ${
+              navTab === 'home'
                 ? 'border-brand text-brand-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                : 'border-transparent text-tertiary hover:text-secondary focus-visible:ring-2 focus-visible:ring-focus-ring'
             }`}
           >
-            Cash Flow & Holding Pool
+            Home
           </button>
           <button
-            onClick={() => setActiveTab('bills')}
-            className={`px-lg py-sm text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'bills'
+            onClick={() => setNavTab('bills')}
+            className={`min-h-[56px] px-md py-sm text-lg font-semibold border-b-2 transition-colors flex items-center gap-sm ${
+              navTab === 'bills'
                 ? 'border-brand text-brand-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                : 'border-transparent text-tertiary hover:text-secondary focus-visible:ring-2 focus-visible:ring-focus-ring'
             }`}
           >
-            Bill Calendar & Alignment
+            Bills
           </button>
           <button
-            onClick={() => setActiveTab('salary')}
-            className={`px-lg py-sm text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'salary'
+            onClick={() => setNavTab('taxes')}
+            className={`min-h-[56px] px-md py-sm text-lg font-semibold border-b-2 transition-colors flex items-center gap-sm ${
+              navTab === 'taxes'
                 ? 'border-brand text-brand-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                : 'border-transparent text-tertiary hover:text-secondary focus-visible:ring-2 focus-visible:ring-focus-ring'
             }`}
           >
-            Self-Paid Paycheck Rules
+            Taxes
           </button>
           <button
-            onClick={() => setActiveTab('walrus')}
-            className={`px-lg py-sm text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'walrus'
+            onClick={() => setNavTab('paycheck')}
+            className={`min-h-[56px] px-md py-sm text-lg font-semibold border-b-2 transition-colors flex items-center gap-sm ${
+              navTab === 'paycheck'
                 ? 'border-brand text-brand-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                : 'border-transparent text-tertiary hover:text-secondary focus-visible:ring-2 focus-visible:ring-focus-ring'
             }`}
           >
-            Walrus Memory & Client Latency
+            My Paycheck
           </button>
           <button
-            onClick={() => setActiveTab('gap-cover')}
-            className={`px-lg py-sm text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'gap-cover'
+            onClick={() => setNavTab('learned')}
+            className={`min-h-[56px] px-md py-sm text-lg font-semibold border-b-2 transition-colors flex items-center gap-sm ${
+              navTab === 'learned'
                 ? 'border-brand text-brand-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                : 'border-transparent text-tertiary hover:text-secondary focus-visible:ring-2 focus-visible:ring-focus-ring'
             }`}
           >
-            Short-Gap Advance Cover
+            What Diction Learned
           </button>
         </div>
+      </nav>
 
-        {/* TAB 1: OVERVIEW */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl">
-            {/* Left 2 Cols: Buffer Simulation & Mechanics */}
-            <div className="lg:col-span-2 space-y-xl">
-              {/* Buffer Health Visualizer */}
-              <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-                <div className="flex items-center justify-between mb-lg">
-                  <div>
-                    <h3 className="text-heading-xs font-bold text-primary">Feast vs Famine Buffer Visualizer</h3>
-                    <p className="text-xs text-secondary mt-xxs">
-                      See how incoming client lump sums protect your next 60 days
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-xs">
-                    <span className="text-xs text-secondary">Target Buffer:</span>
-                    <select
-                      value={targetMonths}
-                      onChange={(e) => setTargetMonths(Number(e.target.value))}
-                      className="text-xs bg-secondary border border-secondary rounded-md px-sm py-xs text-primary font-medium"
-                    >
-                      <option value={1}>1 Month ($2,310)</option>
-                      <option value={2}>2 Months ($4,620)</option>
-                      <option value={3}>3 Months ($6,930)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Progress Stack */}
-                <div className="space-y-sm">
-                  <div className="h-6 w-full bg-secondary rounded-full overflow-hidden flex p-xxs gap-xxs border border-secondary">
-                    <div
-                      style={{ width: `${Math.min(100, (billsNext30Days / holdingBalance) * 100)}%` }}
-                      className="bg-brand-solid rounded-full h-full relative group cursor-pointer"
-                      title="Fixed Bills Reserved"
-                    />
-                    <div
-                      style={{ width: `${Math.min(100, (taxReserveAmount / holdingBalance) * 100)}%` }}
-                      className="bg-utility-gray-200 rounded-full h-full relative group cursor-pointer"
-                      title="Tax Reserved"
-                    />
-                    <div
-                      style={{ width: `${Math.max(0, 100 - ((committedReserves / holdingBalance) * 100))}%` }}
-                      className="bg-success-primary rounded-full h-full relative group cursor-pointer"
-                      title="True Discretionary Safe to Spend"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-md pt-sm text-xs">
-                    <div className="flex items-center gap-xs">
-                      <span className="w-3 h-3 rounded bg-brand-solid shrink-0" />
-                      <div>
-                        <div className="font-semibold text-primary">Committed Bills</div>
-                        <div className="text-tertiary">${billsNext30Days.toLocaleString()}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-xs">
-                      <span className="w-3 h-3 rounded bg-utility-gray-200 shrink-0" />
-                      <div>
-                        <div className="font-semibold text-primary">Tax Quarantine ({taxWithholdingPct}%)</div>
-                        <div className="text-tertiary">${taxReserveAmount.toLocaleString()}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-xs">
-                      <span className="w-3 h-3 rounded bg-success-primary shrink-0" />
-                      <div>
-                        <div className="font-semibold text-success-primary">Discretionary Safe-Spend</div>
-                        <div className="text-tertiary">${safeToSpend.toLocaleString()}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-xl p-md rounded-md bg-secondary border border-secondary flex items-start gap-md">
-                  <Sparkles className="w-4 h-4 text-brand-primary shrink-0 mt-xxs" />
-                  <div className="text-xs text-secondary leading-relaxed">
-                    <span className="font-semibold text-primary">Feast Month Rule:</span> Even when you collect a $10,000 project payout tomorrow, Diction keeps your self-salary locked at ${monthlySalary}/mo. The extra $6,800 is automatically absorbed into your {targetMonths}-month buffer pool, insulating you from slow quarters.
-                  </div>
-                </div>
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-xl py-2xl space-y-2xl">
+        {/* Setup Flow Modal / Overlay if not done */}
+        {!isSetupDone && (
+          /* Card Recipe: rounded-xl border border-secondary bg-primary p-xl */
+          <section className="rounded-xl border border-secondary bg-primary p-2xl shadow-xs space-y-xl">
+            <div className="flex items-center justify-between border-b border-secondary pb-lg">
+              <div>
+                <h2 className="text-heading-sm font-semibold text-primary">Let's set up your personal budget</h2>
+                <p className="text-md text-tertiary">Step {setupStep} of 5</p>
               </div>
+              {/* Progress Bar Recipe: track bg-tertiary rounded-full, fill bg-brand-solid */}
+              <div className="w-48 h-3 rounded-full bg-secondary overflow-hidden flex">
+                <div
+                  style={{ width: `${(setupStep / 5) * 100}%` }}
+                  className="h-full bg-brand-solid rounded-full transition-all"
+                />
+              </div>
+            </div>
 
-              {/* Lumpy Income Feed */}
-              <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-                <div className="flex items-center justify-between mb-md">
-                  <h3 className="text-heading-xs font-bold text-primary">Recent Inflows to Buffer Pool</h3>
+            {setupStep === 1 && (
+              /* Input & Field Recipe: label text-sm font-medium text-secondary, input bg-primary border-primary rounded-md */
+              <div className="flex flex-col gap-sm max-w-xl">
+                <label className="text-lg font-medium text-secondary">What is your first name?</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={e => setUserName(e.target.value)}
+                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary placeholder:text-placeholder border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
+                  placeholder="e.g. Alex"
+                />
+                <button
+                  onClick={() => setSetupStep(2)}
+                  className="mt-md inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  Continue
+                </button>
+              </div>
+            )}
+
+            {setupStep === 2 && (
+              /* Select Recipe: rounded-md bg-primary border-primary */
+              <div className="flex flex-col gap-sm max-w-xl">
+                <label className="text-lg font-medium text-secondary">Which country are you based in?</label>
+                <select
+                  value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <div className="flex gap-md mt-md">
                   <button
-                    onClick={() => setShowInflowModal(true)}
-                    className="text-xs text-brand-primary hover:underline font-semibold flex items-center gap-xs"
+                    onClick={() => setSetupStep(1)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
                   >
-                    <Plus className="w-3.5 h-3.5 shrink-0" /> Log Incoming Payment
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setSetupStep(3)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Continue
                   </button>
                 </div>
-                <div className="divide-y divide-secondary">
-                  {clients.map((c) => (
-                    <div key={c.id} className="py-md flex items-center justify-between">
-                      <div className="flex items-center gap-md">
-                        <div className={`w-9 h-9 rounded-md flex items-center justify-center ${c.status === 'received' ? 'bg-utility-success-50 text-utility-success-700' : 'bg-utility-brand-50 text-utility-brand-700'}`}>
-                          {c.status === 'received' ? <ArrowDownLeft className="w-4 h-4 shrink-0" /> : <Clock className="w-4 h-4 shrink-0" />}
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-primary">{c.client}</div>
-                          <div className="text-xs text-tertiary">
-                            Invoice {c.invoiceId} • {c.status === 'received' ? 'Deposited' : `Expected ${c.expectedDate} (Avg lag: ${c.historicalLagDays}d)`}
-                          </div>
-                        </div>
+              </div>
+            )}
+
+            {setupStep === 3 && (
+              <div className="flex flex-col gap-sm max-w-xl">
+                <label className="text-lg font-medium text-secondary">
+                  What percent of your income goes to tax?
+                </label>
+                <p className="text-xs text-tertiary">
+                  Type a number. This is an estimate you can change anytime.
+                </p>
+                <div className="flex items-center gap-sm">
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={taxRate}
+                    onChange={e => setTaxRate(Number(e.target.value))}
+                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                  />
+                  <span className="text-heading-xs font-bold text-primary">%</span>
+                </div>
+                <div className="flex gap-md mt-md">
+                  <button
+                    onClick={() => setSetupStep(2)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setSetupStep(4)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {setupStep === 4 && (
+              <div className="flex flex-col gap-sm max-w-xl">
+                <label className="text-lg font-medium text-secondary">
+                  What monthly paycheck would you like to receive?
+                </label>
+                <input
+                  type="number"
+                  value={targetPaycheck}
+                  onChange={e => setTargetPaycheck(Number(e.target.value))}
+                  className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
+                />
+                <label className="text-lg font-medium text-secondary mt-md">
+                  Which day of the month is your payday?
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={paydayDay}
+                  onChange={e => setPaydayDay(Number(e.target.value))}
+                  className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                />
+                <div className="flex gap-md mt-md">
+                  <button
+                    onClick={() => setSetupStep(3)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setSetupStep(5)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {setupStep === 5 && (
+              <div className="flex flex-col gap-sm max-w-xl">
+                <h3 className="text-lg font-semibold text-primary">Your baseline monthly bills are ready:</h3>
+                <ul className="space-y-sm text-md text-secondary">
+                  {bills.map(b => (
+                    <li key={b.id} className="flex justify-between border-b border-secondary py-xs">
+                      <span>{b.name} (Due {b.dueDate})</span>
+                      <span className="font-bold text-primary">${b.amount}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-md pt-md">
+                  <button
+                    onClick={() => setSetupStep(4)}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsSetupDone(true);
+                      showToast('Setup saved! Welcome to Diction.');
+                    }}
+                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  >
+                    Finish Setup & Start
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ================= SECTION C: HOME SCREEN ================= */}
+        {navTab === 'home' && isSetupDone && (
+          <div className="space-y-2xl">
+            {/* 3. Alert Recipe: rounded-xl bg-utility-error-50 p-xl, text-utility-error-600 icon and title */}
+            {isGapAlert && (
+              <div className="flex gap-lg rounded-xl bg-utility-error-50 p-xl border border-error-subtle">
+                <AlertTriangle className="mt-xxs size-6 shrink-0 text-utility-error-600" aria-hidden="true" />
+                <div>
+                  <p className="text-lg font-semibold text-utility-error-600">Gap Alert: Bills exceed available funds</p>
+                  <p className="mt-xxs text-md text-tertiary">
+                    Your bills due before payday (${billsDueBeforePayday.toLocaleString()}) are more than your current buffer balance. Hold off on any extra spending until your next invoice arrives.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Status Banner */}
+            <div
+              className={`rounded-xl p-lg flex items-center justify-between border ${
+                isGapAlert
+                  ? 'bg-utility-error-50 border-error-subtle text-utility-error-600'
+                  : safeToSpend < 1000
+                  ? 'bg-utility-warning-50 border-utility-warning-200 text-utility-warning-700'
+                  : 'bg-utility-success-50 border-utility-success-200 text-utility-success-700'
+              }`}
+            >
+              <div className="flex items-center gap-md">
+                <span className="size-4 rounded-full bg-current" />
+                <span className="text-lg font-bold">
+                  {isGapAlert
+                    ? 'Hold off on spending'
+                    : safeToSpend < 1000
+                    ? 'Be careful'
+                    : "You're doing well"}
+                </span>
+              </div>
+              {/* Primary Button Recipe */}
+              <button
+                onClick={() => setShowLogPayment(true)}
+                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                <Plus className="size-6 shrink-0 text-fg-white" />
+                <span>Log a payment</span>
+              </button>
+            </div>
+
+            {/* 4. Large Card Recipe: rounded-xl border border-secondary bg-primary p-xl shadow-xs */}
+            <section className="rounded-xl border border-secondary bg-primary p-2xl shadow-xs text-center md:text-left">
+              <p className="text-sm font-semibold text-tertiary uppercase tracking-wider mb-sm">
+                Safe to Spend
+              </p>
+              <p className="text-heading-2xl font-bold text-success-primary tracking-tight">
+                ${safeToSpend.toLocaleString()}
+              </p>
+              <p className="mt-md text-xl text-secondary font-medium">
+                This is after your bills, taxes and your paycheck are covered.
+              </p>
+            </section>
+
+            {/* Four Smaller Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-xl">
+              {/* 1. Your Buffer */}
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-tertiary">Your Buffer</p>
+                  <Wallet className="size-6 text-brand-primary shrink-0" />
+                </div>
+                <p className="mt-md text-heading-xs font-semibold text-primary">
+                  ${bufferBalance.toLocaleString()}
+                </p>
+                <p className="mt-xxs text-xs text-tertiary">All income lands here first</p>
+              </section>
+
+              {/* 2. Bills Coming Up */}
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-tertiary">Bills Coming Up</p>
+                  <Calendar className="size-6 text-warning-primary shrink-0" />
+                </div>
+                <p className="mt-md text-heading-xs font-semibold text-primary">
+                  ${billsDueBeforePayday.toLocaleString()}
+                </p>
+                <p className="mt-xxs text-xs text-tertiary">Due before next payday</p>
+              </section>
+
+              {/* 3. Tax Set Aside */}
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-tertiary">Tax Set Aside</p>
+                  <Lock className="size-6 text-brand-primary shrink-0" />
+                </div>
+                <p className="mt-md text-heading-xs font-semibold text-primary">
+                  ${taxSetAside.toLocaleString()}
+                </p>
+                <p className="mt-xxs text-xs text-tertiary">Estimate only, not tax advice</p>
+              </section>
+
+              {/* 4. Next Paycheck */}
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-tertiary">Next Paycheck</p>
+                  <TrendingUp className="size-6 text-success-primary shrink-0" />
+                </div>
+                <p className="mt-md text-heading-xs font-semibold text-primary">
+                  ${paycheckFunded.toLocaleString()}
+                </p>
+                <p className="mt-xxs text-xs text-tertiary">Payday on the {paydayDay}st</p>
+              </section>
+            </div>
+
+            {/* Alert / Tinted Callout Recipe for Friendly Summary */}
+            {recentBreakdown && (
+              <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
+                <Sparkles className="mt-xxs size-6 shrink-0 text-utility-brand-600" />
+                <div className="space-y-sm">
+                  <p className="text-lg font-semibold text-utility-brand-600">
+                    Friendly Payment Summary
+                  </p>
+                  <p className="text-md text-primary leading-relaxed">
+                    You received ${recentBreakdown.total.toLocaleString()} from {recentBreakdown.client}. We set aside ${recentBreakdown.tax.toLocaleString()} for tax, ${recentBreakdown.bills.toLocaleString()} for bills, ${recentBreakdown.paycheck.toLocaleString()} for your paycheck, and ${recentBreakdown.buffer.toLocaleString()} into your buffer.
+                  </p>
+                  <button
+                    onClick={() => setRecentBreakdown(null)}
+                    className="text-sm font-semibold text-brand-primary hover:underline"
+                  >
+                    Dismiss summary
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= SECTION: BILLS ================= */}
+        {navTab === 'bills' && (
+          <div className="space-y-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-heading-sm font-semibold text-primary">Upcoming Bills</h2>
+                <p className="text-md text-tertiary">Everything due before your next payday is reserved in full.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const billName = prompt('Enter bill name:');
+                  const amount = prompt('Enter bill amount:');
+                  if (billName && amount) {
+                    setBills(prev => [
+                      ...prev,
+                      {
+                        id: 'b_' + Date.now(),
+                        name: billName,
+                        amount: Number(amount),
+                        dueDate: '2026-11-25',
+                        recurring: 'monthly'
+                      }
+                    ]);
+                    showToast('Bill added.');
+                  }
+                }}
+                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                <Plus className="size-6 shrink-0 text-fg-white" />
+                <span>Add a bill</span>
+              </button>
+            </div>
+
+            {/* 5. Table Recipe: overflow-hidden rounded-xl border border-secondary bg-primary, thead bg-secondary, th px-3xl py-md text-sm font-semibold text-quaternary, td px-3xl py-xl text-md text-tertiary */}
+            <div className="overflow-hidden rounded-xl border border-secondary bg-primary">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 z-10 bg-secondary">
+                  <tr className="border-b border-secondary">
+                    <th className="px-3xl py-md text-sm font-semibold text-quaternary">Bill Name</th>
+                    <th className="px-3xl py-md text-sm font-semibold text-quaternary">Amount</th>
+                    <th className="px-3xl py-md text-sm font-semibold text-quaternary">Due Date</th>
+                    <th className="px-3xl py-md text-sm font-semibold text-quaternary">Frequency</th>
+                    <th className="px-3xl py-md text-sm font-semibold text-quaternary text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bills.map(b => (
+                    <tr key={b.id} className="border-b border-secondary hover:bg-secondary-hover">
+                      <td className="px-3xl py-xl text-md text-primary font-medium">{b.name}</td>
+                      <td className="px-3xl py-xl text-md text-primary font-bold">${b.amount.toLocaleString()}</td>
+                      <td className="px-3xl py-xl text-md text-tertiary">{b.dueDate}</td>
+                      <td className="px-3xl py-xl text-md text-tertiary capitalize">{b.recurring}</td>
+                      <td className="px-3xl py-xl text-md text-right">
+                        {/* 6. Badge Recipe: inline-flex items-center gap-xs rounded-full border border-utility-success-200 bg-utility-success-50 px-md py-xxs text-xs font-medium text-utility-success-700 */}
+                        <span className="inline-flex items-center gap-xs rounded-full border border-utility-success-200 bg-utility-success-50 px-md py-xxs text-xs font-medium text-utility-success-700">
+                          Covered by Buffer
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SECTION: TAXES ================= */}
+        {navTab === 'taxes' && (
+          <div className="space-y-xl">
+            <div>
+              <h2 className="text-heading-sm font-semibold text-primary">Tax Set Aside</h2>
+              <p className="text-md text-tertiary">
+                We take your estimated tax percentage out of every single payment as it lands, so you are never surprised.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+                <p className="text-sm font-medium text-tertiary">Currently Quarantined for Taxes</p>
+                <p className="text-heading-xl font-semibold text-primary">
+                  ${taxSetAside.toLocaleString()}
+                </p>
+                <div className="rounded-md bg-secondary p-lg border border-secondary text-md text-secondary">
+                  <span className="font-semibold text-primary">Your Tax Rate: {taxRate}%</span>
+                  <p className="mt-xs text-xs text-tertiary">Estimate only, not tax advice.</p>
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+                <p className="text-heading-xs font-semibold text-primary">Adjust Your Estimated Rate</p>
+                <p className="text-sm text-tertiary">
+                  Change your rate anytime. Future payments will automatically follow this percentage.
+                </p>
+                <div className="flex items-center gap-md">
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={taxRate}
+                    onChange={e => setTaxRate(Number(e.target.value))}
+                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                  />
+                  <span className="text-heading-xs font-bold text-primary">%</span>
+                </div>
+                <button
+                  onClick={() => showToast('Tax rate updated.')}
+                  className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  Save Tax Rate
+                </button>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SECTION: MY PAYCHECK ================= */}
+        {navTab === 'paycheck' && (
+          <div className="space-y-xl">
+            <div>
+              <h2 className="text-heading-sm font-semibold text-primary">My Personal Paycheck</h2>
+              <p className="text-md text-tertiary">
+                Your buffer turns irregular lump sums into a calm, steady salary paid on the same day every month.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+                <p className="text-sm font-medium text-tertiary">Pay Yourself Card</p>
+                <p className="text-heading-xl font-semibold text-success-primary">
+                  ${paycheckFunded.toLocaleString()}
+                </p>
+                <p className="text-md text-secondary">
+                  Scheduled for payday on the {paydayDay}st of the month.
+                </p>
+                <button
+                  onClick={() => {
+                    showToast('Paycheck transfer prepared for your connected wallet to approve.');
+                  }}
+                  className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring w-full"
+                >
+                  <TrendingUp className="size-6 shrink-0 text-fg-white" />
+                  <span>Pay yourself now</span>
+                </button>
+                <p className="text-xs text-tertiary text-center">
+                  Prepares the transfer in your own wallet. Diction never moves money on its own.
+                </p>
+              </section>
+
+              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+                <p className="text-heading-xs font-semibold text-primary">Monthly Paycheck Settings</p>
+                <div className="flex flex-col gap-xs">
+                  <label className="text-sm font-medium text-secondary">
+                    Target Monthly Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={targetPaycheck}
+                    onChange={e => setTargetPaycheck(Number(e.target.value))}
+                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                  />
+                </div>
+                <div className="flex flex-col gap-xs">
+                  <label className="text-sm font-medium text-secondary">
+                    Payday Day of Month (1-31)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={paydayDay}
+                    onChange={e => setPaydayDay(Number(e.target.value))}
+                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                  />
+                </div>
+                <button
+                  onClick={() => showToast('Paycheck rules saved.')}
+                  className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  Save Paycheck Rules
+                </button>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SECTION H: WHAT DICTION LEARNED ================= */}
+        {navTab === 'learned' && (
+          <div className="space-y-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
+              <div>
+                <h2 className="text-heading-sm font-semibold text-primary">What Diction Learned</h2>
+                <p className="text-md text-tertiary">
+                  Every pattern, payment habit, and forecast rule stored in your personal memory. You can remove any item anytime.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAdminProofs(!showAdminProofs)}
+                className="text-xs font-semibold text-tertiary hover:text-primary"
+              >
+                {showAdminProofs ? 'Hide audit proof' : 'Audit proof'}
+              </button>
+            </div>
+
+            {/* Hidden admin proof section */}
+            {showAdminProofs && (
+              <div className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-md">
+                <p className="text-sm font-semibold text-primary">Audit Log of Confirmed Storage Writes</p>
+                <div className="space-y-xs text-sm font-mono text-secondary max-h-48 overflow-y-auto">
+                  {adminBlobProof.length === 0 ? (
+                    <p className="text-tertiary text-xs">No audit entries yet.</p>
+                  ) : (
+                    adminBlobProof.map((log, i) => (
+                      <div key={i} className="flex justify-between border-b border-secondary py-xs">
+                        <span>{log.timestamp}</span>
+                        <span>{log.blobId}</span>
+                        <span className="text-success-primary">{log.status}</span>
                       </div>
-                      <div className="text-right">
-                        <div className={`text-sm font-bold ${c.status === 'received' ? 'text-success-primary' : 'text-primary'}`}>
-                          {c.status === 'received' ? '+' : ''}${c.amount.toLocaleString()}
-                        </div>
-                        <span className={`text-xs px-xs py-xxs rounded ${c.status === 'received' ? 'bg-utility-success-50 text-utility-success-700 border border-utility-success-200' : c.status === 'delayed' ? 'bg-utility-warning-50 text-utility-warning-700 border border-utility-warning-200' : 'text-tertiary'}`}>
-                          {c.status === 'received' ? 'In Buffer' : c.status === 'delayed' ? 'Late Payer Flag' : 'Pending'}
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Add custom memory */}
+            <div className="rounded-xl border border-secondary bg-primary p-xl shadow-xs flex gap-md items-center">
+              <input
+                type="text"
+                value={memoryInput}
+                onChange={e => setMemoryInput(e.target.value)}
+                placeholder="Teach Diction something (e.g. Apex Studio usually pays on Friday)..."
+                className="rounded-md bg-primary px-lg py-sm text-lg text-primary placeholder:text-placeholder border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring flex-1 min-h-[56px]"
+              />
+              <button
+                onClick={() => {
+                  if (!memoryInput.trim()) return;
+                  fetch('/api/tatum/memories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'user_note', text: memoryInput.trim() })
+                  })
+                    .then(r => r.json())
+                    .then(d => {
+                      if (d?.memory) setMemories(prev => [d.memory, ...prev]);
+                      setMemoryInput('');
+                      showToast('Saved to memory.');
+                    });
+                }}
+                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring shrink-0"
+              >
+                Save memory
+              </button>
+            </div>
+
+            {/* List of learned memories */}
+            <div className="space-y-md">
+              {memories.length === 0 ? (
+                <div className="rounded-xl border border-secondary bg-primary p-2xl text-center text-secondary">
+                  No memories saved yet. Log payments and teach Diction your client habits.
+                </div>
+              ) : (
+                memories.map(m => (
+                  <div
+                    key={m.id}
+                    className="rounded-xl border border-secondary bg-primary p-xl shadow-xs flex items-center justify-between gap-lg hover:bg-secondary-hover"
+                  >
+                    <div>
+                      <p className="text-lg font-semibold text-primary">{m.text}</p>
+                      <div className="flex items-center gap-md mt-xs text-sm text-secondary">
+                        <span className="text-tertiary">{new Date(m.createdAt).toLocaleDateString()}</span>
+                        <span className="inline-flex items-center gap-xs rounded-full border border-utility-success-200 bg-utility-success-50 px-md py-xxs text-xs font-medium text-utility-success-700">
+                          {m.status === 'confirmed' ? 'Saved' : 'Will save shortly'}
                         </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Col: AI Assistant & RPC Node Card */}
-            <div className="space-y-xl">
-              {/* AI Cash-Flow Guard */}
-              <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-                <div className="flex items-center gap-xs mb-md">
-                  <Sparkles className="w-4 h-4 text-brand-primary shrink-0" />
-                  <h3 className="text-sm font-bold text-primary">Diction AI Assistant Layer</h3>
-                </div>
-                <div className="p-md rounded-md bg-secondary border border-secondary text-xs text-secondary space-y-sm">
-                  <div className="flex items-center gap-xs text-primary font-semibold">
-                    <CheckCircle2 className="w-4 h-4 text-success-primary shrink-0" />
-                    <span>Memory Synced to Walrus Protocol</span>
+                    <button
+                      onClick={() => deleteMemory(m.id)}
+                      className="text-tertiary hover:text-error-primary p-md rounded-md"
+                      title="Delete this memory"
+                    >
+                      <Trash2 className="size-6" />
+                    </button>
                   </div>
-                  <p>
-                    "I analyzed your last 9 months of freelance billing. November is historically your lowest invoice collection month. I recommend maintaining a {targetMonths}-month buffer baseline before increasing your personal paycheck."
-                  </p>
-                </div>
-
-                <div className="mt-md space-y-xs">
-                  <div className="text-xs font-semibold text-tertiary uppercase tracking-wider">Suggested Optimizations</div>
-                  <div
-                    onClick={() => {
-                      setActiveTab('bills');
-                      handleAlignBill('b4');
-                    }}
-                    className="p-sm rounded border border-secondary flex items-center justify-between text-xs hover:bg-secondary cursor-pointer"
-                  >
-                    <span>Shift Internet & Utilities to Nov 25</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-tertiary shrink-0" />
-                  </div>
-                  <div
-                    onClick={() => {
-                      triggerToast('Reminder dispatched to Apex Interactive Accounts Payable');
-                    }}
-                    className="p-sm rounded border border-secondary flex items-center justify-between text-xs hover:bg-secondary cursor-pointer"
-                  >
-                    <span>Send automated reminder to Apex Studio</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-tertiary shrink-0" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tatum Live RPC Verification Panel */}
-              <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-                <div className="flex items-center justify-between mb-sm">
-                  <span className="text-xs font-semibold text-tertiary uppercase tracking-wider">Tatum RPC Verification</span>
-                  <span className={`w-2 h-2 rounded-full ${rpcData?.blockNumber ? 'bg-success-primary' : 'bg-warning-primary'}`} />
-                </div>
-                <div className="space-y-xs text-xs">
-                  <div className="flex justify-between py-xxs border-b border-secondary">
-                    <span className="text-tertiary">RPC Provider</span>
-                    <span className="text-primary font-medium">Tatum JSON-RPC Gateway</span>
-                  </div>
-                  <div className="flex justify-between py-xxs border-b border-secondary">
-                    <span className="text-tertiary">Chain</span>
-                    <span className="text-primary font-mono font-medium">{rpcData?.chain || 'ethereum-mainnet'}</span>
-                  </div>
-                  <div className="flex justify-between py-xxs border-b border-secondary">
-                    <span className="text-tertiary">Current Block</span>
-                    <span className="text-primary font-mono font-medium">
-                      {rpcLoading ? 'Fetching...' : rpcData?.blockNumber ? `#${rpcData.blockNumber.toLocaleString()}` : 'Live Node Active'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-xxs border-b border-secondary">
-                    <span className="text-tertiary">Gas Reference</span>
-                    <span className="text-primary font-mono font-medium">
-                      {rpcData?.gasPriceWei ? `${Math.round(rpcData.gasPriceWei / 1e9)} Gwei` : 'Optimal'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-xxs">
-                    <span className="text-tertiary">State Proof Memory</span>
-                    <span className="text-primary font-medium">Walrus Decentralized Blob</span>
-                  </div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
           </div>
         )}
 
-        {/* TAB 2: BILL CALENDAR & ALIGNMENT */}
-        {activeTab === 'bills' && (
-          <div className="space-y-xl">
-            <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-md mb-lg">
-                <div>
-                  <h3 className="text-heading-xs font-bold text-primary">Bill Calendar & Date Alignment</h3>
-                  <p className="text-xs text-secondary mt-xxs">
-                    Move your due dates to just after your typical client payment windows to eliminate timing gaps.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setBills(prev => prev.map(b => ({ ...b, aligned: true, dueDate: '2026-11-25' })));
-                    triggerToast('All bill due dates adjusted to follow client payment windows');
-                  }}
-                  className="px-md py-xs rounded-md bg-secondary hover:bg-secondary-hover border border-secondary text-xs font-semibold flex items-center gap-xs"
-                >
-                  <Sliders className="w-3.5 h-3.5 shrink-0" /> Align All Dates (Post-Payday)
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-secondary text-tertiary font-semibold">
-                      <th className="pb-sm">Expense Item</th>
-                      <th className="pb-sm">Category</th>
-                      <th className="pb-sm">Amount</th>
-                      <th className="pb-sm">Due Date</th>
-                      <th className="pb-sm">Alignment Status</th>
-                      <th className="pb-sm text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-secondary">
-                    {bills.map((b) => (
-                      <tr key={b.id} className="py-sm">
-                        <td className="py-md font-semibold text-primary">{b.name}</td>
-                        <td className="py-md text-secondary">{b.category}</td>
-                        <td className="py-md font-bold text-primary">${b.amount}</td>
-                        <td className="py-md">
-                          <span className={`px-xs py-xxs rounded font-medium ${b.status === 'urgent' && !b.aligned ? 'bg-utility-error-50 text-error-primary border border-error-subtle' : 'text-secondary'}`}>
-                            {b.dueDate}
-                          </span>
-                        </td>
-                        <td className="py-md">
-                          {b.aligned ? (
-                            <span className="bg-utility-success-50 border border-utility-success-200 text-utility-success-700 px-xs py-xxs rounded font-medium flex items-center gap-xxs w-fit">
-                              <CheckCircle2 className="w-3 h-3 shrink-0" /> Aligned (Post-Payday)
-                            </span>
-                          ) : (
-                            <span className="bg-utility-warning-50 border border-utility-warning-200 text-utility-warning-700 px-xs py-xxs rounded font-medium flex items-center gap-xxs w-fit">
-                              <AlertTriangle className="w-3 h-3 shrink-0" /> Timing Gap Risk
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-md text-right">
-                          {!b.aligned ? (
-                            <button
-                              onClick={() => handleAlignBill(b.id)}
-                              className="text-xs text-brand-primary font-semibold hover:underline"
-                            >
-                              Move to Post-Payday Window
-                            </button>
-                          ) : (
-                            <span className="text-xs text-tertiary">Optimized</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: SELF-PAID SALARY */}
-        {activeTab === 'salary' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-            <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs space-y-lg">
-              <div>
-                <h3 className="text-heading-xs font-bold text-primary">Automated Personal Paycheck</h3>
-                <p className="text-xs text-secondary mt-xxs">
-                  Turn erratic income spikes into an unshakeable regular salary.
-                </p>
-              </div>
-
-              <div className="space-y-md">
-                <div>
-                  <label className="text-xs font-semibold text-secondary">Target Monthly Salary ($)</label>
-                  <input
-                    type="number"
-                    value={monthlySalary}
-                    onChange={(e) => setMonthlySalary(Number(e.target.value))}
-                    className="mt-xs w-full bg-secondary border border-secondary rounded-md px-md py-sm text-sm text-primary font-bold"
-                  />
-                  <p className="text-xs text-tertiary mt-xxs">Based on your baseline living budget of ${fixedMonthlyExpenses}/mo</p>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-secondary">Tax Withholding Ratio (%)</label>
-                  <input
-                    type="range"
-                    min="15"
-                    max="40"
-                    value={taxWithholdingPct}
-                    onChange={(e) => setTaxWithholdingPct(Number(e.target.value))}
-                    className="mt-xs w-full"
-                  />
-                  <div className="flex justify-between text-xs text-tertiary mt-xxs">
-                    <span>15% (Basic)</span>
-                    <span className="font-bold text-primary">{taxWithholdingPct}%</span>
-                    <span>40% (High Bracket)</span>
-                  </div>
-                </div>
-
-                <div className="p-md rounded-md bg-utility-brand-50 border border-utility-brand-200 text-xs text-utility-brand-700">
-                  <div className="font-semibold">Buffer Sustainability Score: 94/100</div>
-                  <div className="mt-xxs">
-                    At your current ${holdingBalance.toLocaleString()} holding pool, your self-salary can be paid continuously for {(holdingBalance / (monthlySalary || 1)).toFixed(1)} months even if zero new client revenue lands.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs space-y-md">
-              <h3 className="text-heading-xs font-bold text-primary">How the Paycheck Engine Behaves</h3>
-              <div className="space-y-sm text-xs text-secondary">
-                <div className="p-md rounded border border-secondary">
-                  <div className="font-semibold text-primary">Feast Month ($8,000+ collected)</div>
-                  <p className="mt-xxs">Salary remains locked at ${monthlySalary}. The surplus is quarantined automatically into your buffer pool and tax vault. You never overspend a lucky month.</p>
-                </div>
-                <div className="p-md rounded border border-secondary">
-                  <div className="font-semibold text-primary">Famine Month ($300 collected)</div>
-                  <p className="mt-xxs">Salary is still distributed at ${monthlySalary} on the 1st from the holding pool. Zero late rent, zero panic loans, zero disruption.</p>
-                </div>
-                <div className="p-md rounded border border-secondary">
-                  <div className="font-semibold text-primary">Tax Surprise Defense</div>
-                  <p className="mt-xxs">${taxReserveAmount.toLocaleString()} is locked away completely, so you never get hit with a tax bill you cannot pay.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: WALRUS MEMORY & CLIENT LATENCY */}
-        {activeTab === 'walrus' && (
-          <div className="space-y-xl">
-            <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-md mb-lg">
-                <div>
-                  <div className="flex items-center gap-xs">
-                    <h3 className="text-heading-xs font-bold text-primary">Walrus User-Owned Data Vault</h3>
-                    <span className="bg-utility-brand-50 border border-utility-brand-200 text-utility-brand-700 text-xs px-xs py-xxs rounded font-medium">
-                      Decentralized Blob
-                    </span>
-                  </div>
-                  <p className="text-xs text-secondary mt-xxs">
-                    Your income history, billing patterns, and client delay metrics are encrypted and owned by your wallet on Walrus.
-                  </p>
-                </div>
-                <button
-                  onClick={syncWalrus}
-                  className="px-md py-xs rounded-md bg-brand-solid text-primary-on-brand text-xs font-semibold flex items-center gap-xs shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${walrusSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                  {walrusSyncStatus === 'syncing' ? 'Publishing to Walrus...' : 'Sync with Walrus Blob'}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-md mb-xl">
-                <div className="p-md rounded-md bg-secondary border border-secondary">
-                  <div className="text-xs text-tertiary">Walrus Blob ID</div>
-                  <div className="text-xs font-mono font-bold text-primary truncate mt-xxs">
-                    walrus://0x9df48a04b86e2417ac9b1a0e36
-                  </div>
-                </div>
-                <div className="p-md rounded-md bg-secondary border border-secondary">
-                  <div className="text-xs text-tertiary">Client Reliability Models</div>
-                  <div className="text-xs font-bold text-primary mt-xxs">{clients.length} Clients Tracked</div>
-                </div>
-                <div className="p-md rounded-md bg-secondary border border-secondary">
-                  <div className="text-xs text-tertiary">Encryption & Verification</div>
-                  <div className="text-xs font-bold text-success-primary mt-xxs">Tatum RPC Anchored</div>
-                </div>
-              </div>
-
-              <h4 className="text-sm font-bold text-primary mb-md">Client Payment Lag & Delay Memory</h4>
-              <div className="divide-y divide-secondary">
-                {clients.map((c) => (
-                  <div key={c.id} className="py-md flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-primary">{c.client}</div>
-                      <div className="text-xs text-tertiary">
-                        Invoice {c.invoiceId} • Expected {c.expectedDate}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-xl text-right">
-                      <div>
-                        <div className="text-xs text-tertiary">Historical Lag</div>
-                        <div className={`text-xs font-semibold ${c.historicalLagDays > 7 ? 'text-warning-primary' : 'text-success-primary'}`}>
-                          {c.historicalLagDays === 0 ? 'Prompt Payer' : `+${c.historicalLagDays} days late on average`}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-primary">${c.amount.toLocaleString()}</div>
-                        <div className="text-xs text-secondary">{c.status === 'received' ? 'Received' : 'Outstanding'}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: SHORT-GAP COVER */}
-        {activeTab === 'gap-cover' && (
-          <div className="bg-primary border border-secondary rounded-lg p-xl shadow-xs space-y-lg">
+        {/* ================= SECTION: SETTINGS ================= */}
+        {navTab === 'settings' && (
+          <div className="space-y-xl max-w-2xl">
             <div>
-              <h3 className="text-heading-xs font-bold text-primary">0% Interest Short-Gap Invoice Advance</h3>
-              <p className="text-xs text-secondary mt-xxs">
-                Bridge fixed expenses when an invoice is delayed, backed by your Tatum on-chain buffer pool instead of predatory credit cards.
-              </p>
+              <h2 className="text-heading-sm font-semibold text-primary">Your Profile & Settings</h2>
+              <p className="text-md text-tertiary">Edit your personal setup anytime.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
-              <div className="p-lg rounded-lg border border-secondary bg-secondary">
-                <div className="text-xs text-tertiary">Available Short-Gap Facility</div>
-                <div className="text-heading-sm font-bold text-primary mt-xs">$2,500.00</div>
-                <p className="text-xs text-secondary mt-xxs">Backed by outstanding verified invoices ($5,750)</p>
+            <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+              <div className="flex flex-col gap-xs">
+                <label className="text-sm font-medium text-secondary">Your Name</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={e => setUserName(e.target.value)}
+                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                />
               </div>
-              <div className="p-lg rounded-lg border border-secondary bg-secondary">
-                <div className="text-xs text-tertiary">Borrowing Cost</div>
-                <div className="text-heading-sm font-bold text-success-primary mt-xs">$0.00 (0% APR)</div>
-                <p className="text-xs text-secondary mt-xxs">Community buffer liquidity pool</p>
-              </div>
-              <div className="p-lg rounded-lg border border-secondary bg-secondary">
-                <div className="text-xs text-tertiary">Repayment Mechanism</div>
-                <div className="text-heading-sm font-bold text-primary mt-xs">Auto-settle</div>
-                <p className="text-xs text-secondary mt-xxs">Directly from client invoice deposit</p>
-              </div>
-            </div>
 
-            <button
-              onClick={() => setShowAdvanceModal(true)}
-              className="px-lg py-sm rounded-md bg-brand-solid text-primary-on-brand font-semibold text-sm hover:bg-brand-solid-hover shadow-xs flex items-center gap-xs"
-            >
-              <Zap className="w-4 h-4 shrink-0" /> Request Instant Bridge Advance
-            </button>
+              <div className="flex flex-col gap-xs">
+                <label className="text-sm font-medium text-secondary">Country</label>
+                <select
+                  value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-xs">
+                <label className="text-sm font-medium text-secondary">Tax Rate (%)</label>
+                <input
+                  type="number"
+                  value={taxRate}
+                  onChange={e => setTaxRate(Number(e.target.value))}
+                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                />
+              </div>
+
+              <button
+                onClick={() => showToast('Profile settings saved.')}
+                className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                Save all changes
+              </button>
+            </section>
           </div>
         )}
       </main>
 
-      {/* Modal for Invoice Advance */}
-      {showAdvanceModal && (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center p-md z-50">
-          <div className="bg-primary border border-secondary rounded-xl max-w-lg w-full p-xl shadow-xl space-y-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-heading-xs font-bold text-primary">Draw Short-Gap Advance</h3>
+      {/* ================= 7. Dialog / Modal Recipe: fixed inset-0 bg-overlay opacity-70 + centered max-w-lg rounded-lg bg-primary shadow-2xl ================= */}
+      {showConnectWallet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
+          <div className="fixed inset-0 bg-overlay opacity-70" onClick={() => setShowConnectWallet(false)} />
+          <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-primary shadow-2xl border border-secondary">
+            <header className="flex items-start justify-between gap-lg border-b border-secondary p-xl">
+              <h2 className="text-lg font-semibold text-primary">Connect your wallet</h2>
               <button
-                onClick={() => setShowAdvanceModal(false)}
-                className="text-tertiary hover:text-primary text-xs"
+                onClick={() => setShowConnectWallet(false)}
+                className="text-tertiary hover:text-primary p-xs"
               >
-                ✕ Close
+                <X className="size-6" />
               </button>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-xl text-sm text-secondary space-y-lg">
+              {/* Alert Tinted Callout Recipe inside Modal */}
+              <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
+                <Shield className="mt-xxs size-5 shrink-0 text-utility-brand-600" />
+                <p className="text-sm font-semibold text-utility-brand-600 leading-relaxed">
+                  Diction watches your wallet. Your money stays with you. We never hold or move your funds, and we never ask for your recovery phrase or private keys.
+                </p>
+              </div>
+
+              <div className="space-y-sm">
+                <label className="text-sm font-medium text-secondary">Connected Wallets</label>
+                {connectedWallets.map((w, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-md rounded-md border border-secondary bg-secondary">
+                    <div>
+                      <div className="text-md font-semibold text-primary">{w.type} Wallet</div>
+                      <div className="text-xs font-mono text-tertiary">{w.address}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-md font-bold text-success-primary">${w.balance.toLocaleString()}</div>
+                      <div className="text-xs text-tertiary">USDC / USDT</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-sm border-t border-secondary pt-md">
+                <label className="text-sm font-medium text-secondary">Add another wallet address</label>
+                <div className="flex gap-sm">
+                  <select
+                    value={newWalletType}
+                    onChange={e => setNewWalletType(e.target.value as 'Sui' | 'EVM')}
+                    className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
+                  >
+                    <option value="Sui">Sui Wallet</option>
+                    <option value="EVM">EVM (MetaMask / Ethereum)</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={newWalletAddress}
+                    onChange={e => setNewWalletAddress(e.target.value)}
+                    placeholder="Paste public wallet address (0x...)"
+                    className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary flex-1 min-h-[56px] focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  />
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-secondary">
-              Borrow interest-free to pay upcoming rent while waiting for Apex Interactive's $3,800 invoice to clear.
-            </p>
-            <div className="space-y-sm">
-              <label className="text-xs font-semibold text-secondary">Advance Amount ($)</label>
-              <input
-                type="number"
-                value={advanceAmount}
-                onChange={(e) => setAdvanceAmount(Number(e.target.value))}
-                className="w-full bg-secondary border border-secondary rounded-md px-md py-sm text-sm font-bold text-primary"
-              />
-              <div className="text-xs text-tertiary">Fee: $0.00 • APR: 0% • Due upon invoice arrival</div>
-            </div>
-            <div className="flex justify-end gap-sm pt-sm">
+
+            <footer className="flex justify-end gap-sm border-t border-secondary p-xl">
               <button
-                onClick={() => setShowAdvanceModal(false)}
-                className="px-md py-xs rounded-md bg-secondary hover:bg-secondary-hover text-xs font-semibold"
+                onClick={() => setShowConnectWallet(false)}
+                className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
-                Cancel
+                Close
               </button>
               <button
-                onClick={handleDrawAdvance}
-                className="px-md py-xs rounded-md bg-brand-solid text-primary-on-brand text-xs font-semibold hover:bg-brand-solid-hover"
+                onClick={() => {
+                  if (!newWalletAddress.trim()) return;
+                  const newW = {
+                    address: newWalletAddress.trim().slice(0, 8) + '...' + newWalletAddress.trim().slice(-4),
+                    type: newWalletType,
+                    balance: 1500
+                  };
+                  setConnectedWallets(prev => [...prev, newW]);
+                  setBufferBalance(prev => prev + 1500);
+                  setNewWalletAddress('');
+                  showToast(`${newWalletType} wallet connected and watching.`);
+                }}
+                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
-                Confirm Advance to Holding Pool
+                Watch wallet
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
 
-      {/* Modal for Logging Incoming Payment */}
-      {showInflowModal && (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center p-md z-50">
-          <div className="bg-primary border border-secondary rounded-xl max-w-lg w-full p-xl shadow-xl space-y-md">
-            <div className="flex items-center justify-between">
-              <h3 className="text-heading-xs font-bold text-primary">Log Lumpy Income Inflow</h3>
+      {/* Modal: Log a Payment */}
+      {showLogPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
+          <div className="fixed inset-0 bg-overlay opacity-70" onClick={() => setShowLogPayment(false)} />
+          <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-primary shadow-2xl border border-secondary">
+            <header className="flex items-start justify-between gap-lg border-b border-secondary p-xl">
+              <h2 className="text-lg font-semibold text-primary">New payment received</h2>
               <button
-                onClick={() => setShowInflowModal(false)}
-                className="text-tertiary hover:text-primary text-xs"
+                onClick={() => setShowLogPayment(false)}
+                className="text-tertiary hover:text-primary p-xs"
               >
-                ✕ Close
+                <X className="size-6" />
               </button>
-            </div>
-            <p className="text-xs text-secondary">
-              All client payments land directly in the holding pool first to smooth feast and famine cycles.
-            </p>
-            <form onSubmit={handleDepositInflow} className="space-y-sm">
-              <div>
-                <label className="text-xs font-semibold text-secondary">Client / Source</label>
-                <input
-                  type="text"
-                  value={newInflowClient}
-                  onChange={(e) => setNewInflowClient(e.target.value)}
-                  className="w-full bg-secondary border border-secondary rounded-md px-md py-sm text-xs text-primary font-medium mt-xxs"
-                  required
-                />
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-xl text-sm text-secondary space-y-lg">
+              <p className="text-sm text-tertiary">
+                Record a payment received in cash, bank deposit, or external wallet.
+              </p>
+
+              <div className="flex flex-col gap-sm">
+                <label className="text-sm font-medium text-secondary">Who paid you?</label>
+                <select
+                  value={logClientName}
+                  onChange={e => setLogClientName(e.target.value)}
+                  className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                >
+                  <option value="Apex Studio">Apex Studio</option>
+                  <option value="Nordic Brand House">Nordic Brand House</option>
+                  <option value="HyperFlow Media">HyperFlow Media</option>
+                  <option value="Other Client">Other Client / New Client</option>
+                </select>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-secondary">Amount ($)</label>
+
+              <div className="flex flex-col gap-sm">
+                <label className="text-sm font-medium text-secondary">Payment Amount ($)</label>
                 <input
                   type="number"
-                  value={newInflowAmount}
-                  onChange={(e) => setNewInflowAmount(Number(e.target.value))}
-                  className="w-full bg-secondary border border-secondary rounded-md px-md py-sm text-sm font-bold text-primary mt-xxs"
-                  required
+                  value={logAmount}
+                  onChange={e => setLogAmount(Number(e.target.value))}
+                  className="rounded-md bg-primary px-lg py-sm text-sm font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
                 />
               </div>
-              <div className="flex justify-end gap-sm pt-sm">
-                <button
-                  type="button"
-                  onClick={() => setShowInflowModal(false)}
-                  className="px-md py-xs rounded-md bg-secondary hover:bg-secondary-hover text-xs font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-md py-xs rounded-md bg-brand-solid text-primary-on-brand text-xs font-semibold hover:bg-brand-solid-hover"
-                >
-                  Deposit to Buffer Pool
-                </button>
+            </div>
+
+            <footer className="flex justify-end gap-sm border-t border-secondary p-xl">
+              <button
+                onClick={() => setShowLogPayment(false)}
+                className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  processNewPayment(logAmount, logClientName);
+                  setShowLogPayment(false);
+                }}
+                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                Sort payment into buffer
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Floating round button: Ask Diction */}
+      <button
+        onClick={() => setIsAssistantOpen(true)}
+        className="fixed bottom-6 right-6 z-40 rounded-full bg-brand-solid text-primary-on-brand shadow-lg hover:bg-brand-solid-hover p-lg flex items-center gap-sm min-h-[56px] font-semibold text-lg focus-visible:ring-2 focus-visible:ring-focus-ring"
+      >
+        <MessageCircle className="size-7 shrink-0 text-fg-white" />
+        <span className="pr-xs">Ask Diction</span>
+      </button>
+
+      {/* Assistant Chat Panel */}
+      {isAssistantOpen && (
+        <div className="fixed bottom-24 right-6 z-50 w-full max-w-md bg-primary border border-secondary rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[600px]">
+          <header className="bg-secondary p-lg border-b border-secondary flex items-center justify-between">
+            <div className="flex items-center gap-sm">
+              <Sparkles className="size-5 text-brand-primary shrink-0" />
+              <span className="text-md font-semibold text-primary">Ask Diction</span>
+            </div>
+            <button
+              onClick={() => setIsAssistantOpen(false)}
+              className="text-tertiary hover:text-primary p-xs"
+            >
+              <X className="size-5" />
+            </button>
+          </header>
+
+          <div className="p-md bg-secondary border-b border-secondary space-y-xs">
+            <span className="text-xs font-semibold text-tertiary uppercase tracking-wider block">Quick questions</span>
+            <div className="flex flex-col gap-xs">
+              <button
+                onClick={() => handleAskAssistant('Can I spend $200?')}
+                className="text-left text-xs font-semibold text-brand-primary hover:underline"
+              >
+                • Can I afford to spend $200?
+              </button>
+              <button
+                onClick={() => handleAskAssistant('Why is my safe-to-spend this number?')}
+                className="text-left text-xs font-semibold text-brand-primary hover:underline"
+              >
+                • Why is my safe-to-spend this number?
+              </button>
+              <button
+                onClick={() => handleAskAssistant('Which bill is due next?')}
+                className="text-left text-xs font-semibold text-brand-primary hover:underline"
+              >
+                • Which bill is due next?
+              </button>
+            </div>
+          </div>
+
+          <div className="p-lg overflow-y-auto flex-1 space-y-md text-sm">
+            {chatLog.map((c, i) => (
+              <div
+                key={i}
+                className={`p-md rounded-md ${
+                  c.sender === 'assistant'
+                    ? 'bg-secondary text-primary border border-secondary'
+                    : 'bg-brand-solid text-primary-on-brand font-medium ml-auto max-w-[85%]'
+                }`}
+              >
+                {c.text}
               </div>
-            </form>
+            ))}
+          </div>
+
+          <div className="p-md border-t border-secondary bg-primary flex gap-sm">
+            <input
+              type="text"
+              value={chatQuestion}
+              onChange={e => setChatQuestion(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAskAssistant(chatQuestion);
+              }}
+              placeholder="Ask anything about your money..."
+              className="rounded-md bg-secondary px-lg py-sm text-sm text-primary placeholder:text-placeholder border border-primary flex-1 focus-visible:ring-2 focus-visible:ring-focus-ring"
+            />
+            <button
+              onClick={() => handleAskAssistant(chatQuestion)}
+              className="rounded-md bg-brand-solid text-primary-on-brand px-lg py-sm font-semibold flex items-center justify-center shrink-0 hover:bg-brand-solid-hover"
+            >
+              <Send className="size-4 text-fg-white" />
+            </button>
           </div>
         </div>
       )}
 
       {/* Footer */}
-      <footer className="border-t border-secondary bg-primary mt-auto py-md text-center text-xs text-tertiary">
-        Diction • Freelancer Cash Flow Smoothing Buffer • Tatum RPC & Walrus Decentralized Protocol
+      <footer className="border-t border-secondary bg-primary mt-auto py-lg text-center text-md text-secondary">
+        Diction
       </footer>
     </div>
   );
