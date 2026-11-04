@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LiveFeed from './LiveFeed';
 import {
   Shield,
   Wallet,
@@ -110,8 +111,7 @@ export default function App() {
   const [recentBreakdown, setRecentBreakdown] = useState<PaymentBreakdown | null>(null);
 
   const [connectedWallets, setConnectedWallets] = useState<Array<{ address: string; type: 'Sui' | 'EVM'; balance: number }>>([
-    { address: '0x3a4f...89e1', type: 'Sui', balance: 2450 },
-    { address: '0x71C...a42B', type: 'EVM', balance: 1800 }
+    
   ]);
   const [showConnectWallet, setShowConnectWallet] = useState<boolean>(false);
   const [newWalletAddress, setNewWalletAddress] = useState<string>('');
@@ -639,6 +639,7 @@ export default function App() {
             </div>
 
             {/* Alert / Tinted Callout Recipe for Friendly Summary */}
+            <LiveFeed safeToSpend={safeToSpend} onBalance={setBufferBalance} />
             {recentBreakdown && (
               <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
                 <Sparkles className="mt-xxs size-6 shrink-0 text-utility-brand-600" />
@@ -1077,10 +1078,10 @@ export default function App() {
                   const newW = {
                     address: newWalletAddress.trim().slice(0, 8) + '...' + newWalletAddress.trim().slice(-4),
                     type: newWalletType,
-                    balance: 1500
+                    balance:0
                   };
                   setConnectedWallets(prev => [...prev, newW]);
-                  setBufferBalance(prev => prev + 1500);
+                  
                   setNewWalletAddress('');
                   showToast(`${newWalletType} wallet connected and watching.`);
                 }}
