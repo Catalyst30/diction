@@ -13,6 +13,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import tatumRoutes from './routes/tatum.mjs'
+import walletRoutes from './routes/wallet.mjs'
 import { credentialGuard } from './credential-guard.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
