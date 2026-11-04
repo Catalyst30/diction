@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import LiveFeed from './LiveFeed';
+import WalletPanel from './WalletPanel';
+import { COUNTRIES } from './countries';
 import {
   Shield,
   Wallet,
@@ -60,7 +61,7 @@ interface MemoryItem {
   blobId?: string;
 }
 
-const COUNTRIES = [
+  const COUNTRIES_OLD = [
   'United States',
   'United Kingdom',
   'Canada',
@@ -114,6 +115,7 @@ export default function App() {
     
   ]);
   const [showConnectWallet, setShowConnectWallet] = useState<boolean>(false);
+  const [walletCount, setWalletCount] = useState<number>(0);
   const [newWalletAddress, setNewWalletAddress] = useState<string>('');
   const [newWalletType, setNewWalletType] = useState<'Sui' | 'EVM'>('Sui');
 
@@ -280,7 +282,7 @@ export default function App() {
               className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <Wallet className="size-6 text-brand-primary shrink-0" />
-              <span>Wallets ({connectedWallets.length})</span>
+              <span>Wallets ({walletCount})</span>
             </button>
             <button
               onClick={() => setNavTab('settings')}
@@ -639,7 +641,7 @@ export default function App() {
             </div>
 
             {/* Alert / Tinted Callout Recipe for Friendly Summary */}
-            <LiveFeed safeToSpend={safeToSpend} onBalance={setBufferBalance} />
+           
             {recentBreakdown && (
               <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
                 <Sparkles className="mt-xxs size-6 shrink-0 text-utility-brand-600" />
@@ -1004,7 +1006,7 @@ export default function App() {
       </main>
 
       {/* ================= 7. Dialog / Modal Recipe: fixed inset-0 bg-overlay opacity-70 + centered max-w-lg rounded-lg bg-primary shadow-2xl ================= */}
-      {showConnectWallet && (
+      {false && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
           <div className="fixed inset-0 bg-overlay opacity-70" onClick={() => setShowConnectWallet(false)} />
           <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-primary shadow-2xl border border-secondary">
@@ -1093,7 +1095,7 @@ export default function App() {
           </div>
         </div>
       )}
-
+         <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setBufferBalance} onCount={setWalletCount} />
       {/* Modal: Log a Payment */}
       {showLogPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
