@@ -3,8 +3,10 @@ import { tatumRpc, MissingApiKeyError } from '../tatum-client.mjs'
 import {
   saveMemory,
   recallMemories,
-  localMemories,
-  memoryAuditLog
+    localMemories,
+  memoryAuditLog,
+  hydrate,
+  walrusStatus
 } from '../walrus-memory.mjs'
 
 const router = Router()
@@ -115,7 +117,10 @@ router.post('/watch-evm', async (req, res) => {
 })
 
 // Walrus Memory endpoints
+router.get('/walrus-status', (_req, res) => res.json(walrusStatus()))
+
 router.get('/memories', async (_req, res) => {
+  await hydrate()
   res.json({
     success: true,
     memories: localMemories,
