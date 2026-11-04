@@ -32,7 +32,7 @@ app.use(express.json())
 app.use(credentialGuard)
 
 app.use('/api/tatum', tatumRoutes)
-
+app.use('/api/wallet', walletRoutes)
 const server = createHttpServer(app)
 
 // All Vite config is inline — no vite.config.js needed, no temp files written.
