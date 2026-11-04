@@ -1,126 +1,71 @@
 import { MemWal } from '@mysten-incubation/memwal'
 
-const MEMWAL_SERVER_URL = process.env.MEMWAL_SERVER_URL || 'https://relayer.memory.walrus.xyz'
-const MEMWAL_ACCOUNT_ID = process.env.MEMWAL_ACCOUNT_ID || ''
-const MEMWAL_PRIVATE_KEY = process.env.MEMWAL_PRIVATE_KEY || ''
+let client = null
+let lastError = null
+export const localMemories = [] // cache of this server's writes; Walrus is the source of truth
+export const memoryAuditLog = [] // only REAL blob ids from Walrus ever go here
 
-let memWalClient = null
+const configured = () => !!(process.env.MEMWAL_PRIVATE_KEY && process.env.MEMWAL_ACCOUNT_ID)
 
 function getClient() {
-  if (memWalClient) return memWalClient
-  if (!MEMWAL_ACCOUNT_ID || !MEMWAL_PRIVATE_KEY) {
-    return null
-  }
-  try {
-    memWalClient = new MemWal({
-      relayerUrl: MEMWAL_SERVER_URL,
-      accountId: MEMWAL_ACCOUNT_ID,
-      delegatePrivateKey: MEMWAL_PRIVATE_KEY,
-    })
-    return memWalClient
-  } catch (err) {
-    console.error('Failed to initialize MemWal client:', err)
-    return null
-  }
+  if (client) return client
+  if (!configured()) return null
+  client = MemWal.create({
+    key: process.env.MEMWAL_PRIVATE_KEY,
+    accountId: process.env.MEMWAL_ACCOUNT_ID,
+    serverUrl: process.env.MEMWAL_SERVER_URL || 'https://relayer.memory.walrus.xyz',
+    namespace: process.env.MEMWAL_NAMESPACE || 'diction',
+  })
+  return client
 }
 
-// In-memory persistent log of blob IDs for the hidden admin audit page
-export const memoryAuditLog = []
+export const walrusStatus = () => ({ configured: configured(), lastError, confirmedWrites: memoryAuditLog.length })
 
-// Local fallback store so the app functions seamlessly if network or keys are pending
-export const localMemories = [
-  {
-    id: 'm1',
-    type: 'client_behavior',
-    text: 'Apex Interactive Studio pays about 14 days late after invoice issuance.',
-    createdAt: new Date().toISOString(),
-    blobId: 'walrus-blob-proof-88f1a',
-    status: 'confirmed'
-  },
-  {
-    id: 'm2',
-    type: 'paycheck_rule',
-    text: 'Monthly paycheck target set to $3,200 paid on the 1st of every month.',
-    createdAt: new Date().toISOString(),
-    blobId: 'walrus-blob-proof-91c2b',
-    status: 'confirmed'
-  },
-  {
-    id: 'm3',
-    type: 'tax_rule',
-    text: 'User tax set-aside rate is 25% of all gross incoming payments.',
-    createdAt: new Date().toISOString(),
-    blobId: 'walrus-blob-proof-77e4d',
-    status: 'confirmed'
+async function attempt(rec, tries = 0) {
+  const c = getClient()
+  if (!c) { rec.status = 'not_configured'; lastError = 'MEMWAL_PRIVATE_KEY / MEMWAL_ACCOUNT_ID not set'; return false }
+  try {
+    const r = await c.rememberAndWait(`[${rec.type}] ${rec.text}`)
+    rec.status = 'confirmed'
+    rec.blobId = r.blob_id
+    memoryAuditLog.unshift({ timestamp: new Date().toISOString(), type: rec.type, blobId: r.blob_id, status: 'confirmed' })
+    lastError = null
+    return true
+  } catch (err) {
+    lastError = err?.message || String(err)
+    console.error('Walrus write failed:', lastError)
+    if (tries < 3) {
+      rec.status = 'retry_scheduled'
+      setTimeout(() => attempt(rec, tries + 1), 20000 * (tries + 1))
+    } else rec.status = 'failed'
+    return false
   }
-]
+}
 
 export async function saveMemory(type, text) {
-  const client = getClient()
-  const memoryRecord = {
-    id: 'mem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-    type,
-    text,
-    createdAt: new Date().toISOString(),
-    status: 'pending',
-    blobId: null,
-  }
-
-  localMemories.unshift(memoryRecord)
-
-  if (!client) {
-    // If credentials are not yet configured, record as confirmed locally
-    memoryRecord.status = 'confirmed'
-    memoryRecord.blobId = 'local-store-' + memoryRecord.id
-    memoryAuditLog.unshift({
-      timestamp: memoryRecord.createdAt,
-      type,
-      blobId: memoryRecord.blobId,
-      status: 'confirmed-local'
-    })
-    return { success: true, memory: memoryRecord }
-  }
-
-  try {
-    const res = await client.remember({
-      content: `[${type.toUpperCase()}] ${text}`,
-    })
-    const blobId = res?.jobId || res?.blobId || 'blob_' + Date.now()
-    memoryRecord.status = 'confirmed'
-    memoryRecord.blobId = blobId
-
-    memoryAuditLog.unshift({
-      timestamp: memoryRecord.createdAt,
-      type,
-      blobId,
-      status: 'confirmed'
-    })
-
-    return { success: true, memory: memoryRecord }
-  } catch (err) {
-    console.error('Walrus saveMemory error (will retry in background):', err?.message || err)
-    memoryRecord.status = 'retry_scheduled'
-    return { success: false, memory: memoryRecord, error: err?.message }
-  }
+  const rec = { id: 'mem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), type, text, createdAt: new Date().toISOString(), status: 'pending', blobId: null }
+  localMemories.unshift(rec)
+  const ok = await attempt(rec)
+  return { success: ok, memory: rec, error: ok ? undefined : lastError }
 }
 
-export async function recallMemories(question) {
-  const client = getClient()
-  if (!client) {
-    return localMemories.map(m => m.text)
-  }
-
+export async function recallMemories(question, limit = 8) {
+  const c = getClient()
+  if (!c) return []
   try {
-    const res = await client.recall({
-      query: question,
-      maxTokens: 500,
-    })
-    if (res?.memories && Array.isArray(res.memories)) {
-      return res.memories.map(m => m.content || m.text || String(m))
+    const r = await c.recall({ query: question, limit })
+    return (r.results || []).map((m) => m.text)
+  } catch (err) { lastError = err?.message || String(err); return [] }
+}
+
+// After a server restart the cache is empty: rebuild it from Walrus itself.
+export async function hydrate() {
+  const c = getClient()
+  if (!c || localMemories.length) return
+  try {
+    const r = await c.recall({ query: 'client payment paycheck tax bill', limit: 50 })
+    for (const m of r.results || []) {
+      localMemories.push({ id: m.blob_id, type: 'recalled', text: m.text, createdAt: m.created_at || '', status: 'confirmed', blobId: m.blob_id })
     }
-    return localMemories.map(m => m.text)
-  } catch (err) {
-    console.error('Walrus recallMemories error, falling back:', err?.message || err)
-    return localMemories.map(m => m.text)
-  }
+  } catch (err) { lastError = err?.message || String(err) }
 }
