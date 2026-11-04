@@ -13,3 +13,5 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
 }
+html { font-size: clamp(14px, 0.6vw + 12px, 17px); scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; overflow-x: hidden; transition: background-color .2s, color .2s; }
