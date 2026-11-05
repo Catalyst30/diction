@@ -24,6 +24,9 @@ import {
   ChevronDown
 } from 'lucide-react';
 
+   import { useLearning } from './learning';
+   import LearningPanel from './LearningPanel';
+
 interface Bill {
   id: string;
   name: string;
@@ -150,10 +153,10 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
-
+  const learning = useLearning(clients, setClients, memories, setMemories);
   const billsDueBeforePayday = bills.reduce((acc, b) => acc + b.amount, 0);
 
-  const pendingIncome = clients.filter(c => c.status === 'pending');
+  const pendingIncome = learning.clients.filter(c => c.status === 'pending');
   const conservativeExpectedIncome = pendingIncome.reduce(
     (acc, c) => acc + Math.round(c.amount * c.reliabilityScore),
     0
@@ -164,6 +167,7 @@ export default function App() {
   const isGapAlert = rawSafeToSpend < 0;
 
   const processNewPayment = (amount: number, clientName: string) => {
+       learning.record(clientName, new Date().toISOString().slice(0, 10));
     const taxPart = Math.round(amount * (taxRate / 100));
     let remaining = amount - taxPart;
 
@@ -917,6 +921,7 @@ export default function App() {
               </button>
             </div>
 
+               <LearningPanel learning={learning} />
             {/* List of learned memories */}
             <div className="space-y-md">
               {memories.length === 0 ? (
