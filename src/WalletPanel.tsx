@@ -130,7 +130,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
 
   return (
     <>
-      <ThemeToggle />
+      
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-md">
           <div className="fixed inset-0 bg-overlay opacity-70" onClick={onClose} />
