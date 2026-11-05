@@ -70,7 +70,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
         try {
           const r = await fetch(`/api/wallet/${w.type.toLowerCase()}-activity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: w.address }) });
           const d = await r.json();
-          if (d.success) next[w.address] = d; else err = d.error;
+          if (d.success) { next[w.address] = d; if (d.note) err = d.note; } else err = d.error;
         } catch { err = 'Could not reach the server.'; }
       }
       if (!live) return;
