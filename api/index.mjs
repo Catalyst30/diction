@@ -4,10 +4,12 @@ import express from 'express'
 import tatumRoutes from '../server/routes/tatum.mjs'
 import walletRoutes from '../server/routes/wallet.mjs'
 import { credentialGuard } from '../server/credential-guard.mjs'
+import { requireUser } from '../server/auth.mjs'
 
 const app = express()
 app.use(express.json())
 app.use(credentialGuard)
+app.use('/api', requireUser)
 app.use('/api/tatum', tatumRoutes)
 app.use('/api/wallet', walletRoutes)
 
