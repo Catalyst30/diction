@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
    import { useLearning } from './learning';
-   import LearningPanel from './LearningPanel';
+   import LearningPanel, { MemoryFeed } from './LearningPanel';
 
 interface Bill {
   id: string;
@@ -842,16 +842,16 @@ export default function App() {
         {/* ================= SECTION H: WHAT DICTION LEARNED ================= */}
         {navTab === 'learned' && (
           <div className="space-y-xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
+            <div className="flex items-start justify-between gap-md">
               <div>
                 <h2 className="text-heading-sm font-semibold text-primary">What Diction Learned</h2>
-                <p className="text-md text-tertiary">
-                  Every pattern, payment habit, and forecast rule stored in your personal memory. You can remove any item anytime.
+                <p className="mt-xs text-md text-tertiary">
+                  Payment habits and notes saved to your personal memory. You can remove any item anytime.
                 </p>
               </div>
               <button
                 onClick={() => setShowAdminProofs(!showAdminProofs)}
-                className="text-xs font-semibold text-tertiary hover:text-primary"
+                className="shrink-0 text-xs font-semibold text-tertiary hover:text-primary"
               >
                 {showAdminProofs ? 'Hide audit proof' : 'Audit proof'}
               </button>
@@ -859,16 +859,16 @@ export default function App() {
 
             {/* Hidden admin proof section */}
             {showAdminProofs && (
-              <div className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-md">
+              <div className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs space-y-md">
                 <p className="text-sm font-semibold text-primary">Audit Log of Confirmed Storage Writes</p>
                 <div className="space-y-xs text-sm font-mono text-secondary max-h-48 overflow-y-auto">
                   {adminBlobProof.length === 0 ? (
                     <p className="text-tertiary text-xs">No audit entries yet.</p>
                   ) : (
                     adminBlobProof.map((log, i) => (
-                      <div key={i} className="flex justify-between border-b border-secondary py-xs">
+                      <div key={i} className="flex justify-between gap-sm border-b border-secondary py-xs">
                         <span>{log.timestamp}</span>
-                        <span>{log.blobId}</span>
+                        <span className="truncate">{log.blobId}</span>
                         <span className="text-success-primary">{log.status}</span>
                       </div>
                     ))
@@ -877,14 +877,14 @@ export default function App() {
               </div>
             )}
 
-            {/* Add custom memory */}
-            <div className="rounded-xl border border-secondary bg-primary p-xl shadow-xs flex gap-md items-center">
+            {/* Teach Diction */}
+            <div className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs flex flex-col gap-md sm:flex-row sm:items-center">
               <input
                 type="text"
                 value={memoryInput}
                 onChange={e => setMemoryInput(e.target.value)}
-                placeholder="Teach Diction something (e.g. Apex Studio usually pays on Friday)..."
-                className="rounded-md bg-primary px-lg py-sm text-lg text-primary placeholder:text-placeholder border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring flex-1 min-h-[56px]"
+                placeholder="Teach Diction something, e.g. Apex Studio pays on Fridays"
+                className="rounded-xl bg-primary px-lg py-sm text-md text-primary placeholder:text-placeholder border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-w-0 sm:flex-1 min-h-[52px]"
               />
               <button
                 onClick={() => {
@@ -901,45 +901,15 @@ export default function App() {
                       showToast('Saved to memory.');
                     });
                 }}
-                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring shrink-0"
+                className="inline-flex w-full items-center justify-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[52px] text-md font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring sm:w-auto shrink-0"
               >
                 Save memory
               </button>
             </div>
 
-               <LearningPanel learning={learning} />
-            {/* List of learned memories */}
-            <div className="space-y-md">
-              {memories.length === 0 ? (
-                <div className="rounded-xl border border-secondary bg-primary p-2xl text-center text-secondary">
-                  No memories saved yet. Log payments and teach Diction your client habits.
-                </div>
-              ) : (
-                memories.map(m => (
-                  <div
-                    key={m.id}
-                    className="rounded-xl border border-secondary bg-primary p-xl shadow-xs flex items-center justify-between gap-lg hover:bg-secondary-hover"
-                  >
-                    <div>
-                      <p className="text-lg font-semibold text-primary">{m.text}</p>
-                      <div className="flex items-center gap-md mt-xs text-sm text-secondary">
-                        <span className="text-tertiary">{new Date(m.createdAt).toLocaleDateString()}</span>
-                        <span className="inline-flex items-center gap-xs rounded-full border border-utility-success-200 bg-utility-success-50 px-md py-xxs text-xs font-medium text-utility-success-700">
-                          {m.status === 'confirmed' ? 'Saved' : 'Will save shortly'}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => deleteMemory(m.id)}
-                      className="text-tertiary hover:text-error-primary p-md rounded-md"
-                      title="Delete this memory"
-                    >
-                      <Trash2 className="size-6" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+            <LearningPanel learning={learning} />
+
+            <MemoryFeed memories={memories} onDelete={deleteMemory} />
           </div>
         )}
 
