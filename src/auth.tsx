@@ -6,6 +6,18 @@ import { taxFor, hasRate } from './taxRates';
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const supabase = url && anon ? createClient(url, anon) : null;
+if (supabase && typeof window !== 'undefined') {
+  const orig = window.fetch.bind(window);
+  window.fetch = async (input: any, init: any = {}) => {
+    const u = typeof input === 'string' ? input : input?.url || '';
+    if (u.startsWith('/api/')) {
+      const { data } = await supabase.auth.getSession();
+      const t = data.session?.access_token;
+      if (t) { const h = new Headers(init.headers || {}); h.set('Authorization', `Bearer ${t}`); init = { ...init, headers: h }; }
+    }
+    return orig(input, init);
+  };
+}
 
 export type Profile = { name: string; country: string; gender: string; age: number; work: string; taxRate: number; email: string };
 const Ctx = createContext<Profile | null>(null);
