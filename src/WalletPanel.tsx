@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Sun, Moon } from 'lucide-react';
 
 type W = { type: 'Sui' | 'EVM'; address: string };
 type Asset = { symbol: string; amount: number; usd: number | null };
@@ -12,7 +13,7 @@ const load = (): W[] => { try { return JSON.parse(localStorage.getItem('diction_
 const bad = { color: 'var(--color-text-error-primary, #B42318)' };
 const good = { color: 'var(--color-text-success-primary, #067647)' };
 
-function ThemeToggle() {
+export function ThemeToggle() {
   const [dark, setDark] = useState(() => {
     try { const s = localStorage.getItem('diction_theme'); return s ? s === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; }
   });
@@ -21,11 +22,26 @@ function ThemeToggle() {
     try { localStorage.setItem('diction_theme', dark ? 'dark' : 'light'); } catch {}
   }, [dark]);
   return (
-    <button onClick={() => setDark(!dark)} aria-label="Switch between light and dark mode"
-      className="fixed bottom-4 left-4 z-40 rounded-lg border border-primary bg-primary px-lg py-sm min-h-[48px] text-sm font-semibold text-secondary shadow-xs hover:bg-primary-hover">
-      {dark ? 'Light mode' : 'Dark mode'}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label="Toggle dark mode"
+      onClick={() => setDark(!dark)}
+      className="relative inline-flex h-11 w-[76px] shrink-0 items-center rounded-full border border-primary bg-secondary shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring"
+    >
+      <Sun className="absolute left-3 size-4 text-tertiary" />
+      <Moon className="absolute right-3 size-4 text-tertiary" />
+      <span
+        className={`absolute left-1 top-[5px] flex size-8 items-center justify-center rounded-full bg-brand-solid shadow-md transition-transform duration-200 ${
+          dark ? 'translate-x-[34px]' : 'translate-x-0'
+        }`}
+      >
+        {dark ? <Moon className="size-4 text-fg-white" /> : <Sun className="size-4 text-fg-white" />}
+      </span>
     </button>
   );
+}
 }
 
 export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onCount }: {
