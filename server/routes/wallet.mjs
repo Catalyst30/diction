@@ -1,11 +1,15 @@
 import { Router } from 'express'
-import { tatumRpc, tatumFetch } from '../tatum-client.mjs'
 import { SuiGrpcClient } from '@mysten/sui/grpc'
+import { GrpcTransport } from '@protobuf-ts/grpc-transport'
+import { ChannelCredentials } from '@grpc/grpc-js'
+import { tatumRpc, tatumFetch } from '../tatum-client.mjs'
 
 const router = Router()
-const SUI = {
-  '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC': 'USDC',
-  '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d481574effb::coin::COIN': 'USDT',
+const SUI_COINS = {
+  '0x2::sui::SUI': { sym: 'SUI', dec: 9 },
+  '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC': { sym: 'USDC', dec: 6 },
+  '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d481574effb::coin::COIN': { sym: 'USDT', dec: 6 },
+  '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL': { sym: 'WAL', dec: 9 },
 }
 const EVM = { USDC: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', USDT: '0xdac17f958d2ee523a2206206994597c13d831ec7' }
 const TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
@@ -38,71 +42,46 @@ async function priced(assets) {
   return { assets: out.sort((x, y) => (y.usd || 0) - (x.usd || 0)), total: out.reduce((s, a) => s + (a.usd || 0), 0) }
 }
 
-const meta = new Map()
-async function info(ct) {
-  if (meta.has(ct)) return meta.get(ct)
-  let v
-  if (SUI[ct]) v = { sym: SUI[ct], dec: 6 }
-  else {
-    try { const m = await rpc('sui', 'suix_getCoinMetadata', [ct]); v = { sym: m?.symbol || ct.split('::').pop(), dec: m?.decimals ?? 9 } }
-    catch { v = { sym: ct.split('::').pop(), dec: 9 } }
+let grpc
+function sui() {
+  if (!grpc) {
+    grpc = new SuiGrpcClient({
+      network: 'mainnet',
+      transport: new GrpcTransport({
+        host: 'sui-mainnet-grpc.gateway.tatum.io:443',
+        channelCredentials: ChannelCredentials.createSsl(),
+        meta: { 'x-api-key': process.env.TATUM_API_KEY || '' },
+      }),
+    })
   }
-  meta.set(ct, v)
-  return v
+  return grpc
 }
 
-async function suiAssetsJson(address) {
-  const bals = (await rpc('sui', 'suix_getAllBalances', [address])).filter((c) => Number(c.totalBalance)).slice(0, 12)
-  return Promise.all(bals.map(async (c) => { const i = await info(c.coinType); return { symbol: i.sym, amount: Number(c.totalBalance) / 10 ** i.dec } }))
-}
-
-async function suiAssetsGrpc(address) {
-  const g = new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://sui-mainnet.gateway.tatum.io', meta: { 'x-api-key': process.env.TATUM_API_KEY } })
-  const { balances } = await g.listBalances({ owner: address, limit: 50 })
-  const held = balances.filter((b) => Number(b.balance) > 0).slice(0, 12)
+async function suiAssets(address) {
+  const g = sui()
+  let list
+  try { list = (await g.listBalances({ owner: address, limit: 50 })).balances }
+  catch {
+    list = await Promise.all(Object.keys(SUI_COINS).map(async (coinType) => ({ coinType, balance: (await g.getBalance({ owner: address, coinType })).balance.balance })))
+  }
+  const held = list.filter((b) => Number(b.balance) > 0).slice(0, 12)
   return Promise.all(held.map(async (b) => {
-    let sym = SUI[b.coinType], dec = 6
-    if (!sym) {
-      try { const m = (await g.getCoinMetadata({ coinType: b.coinType })).coinMetadata; sym = m?.symbol; dec = m?.decimals ?? 9 } catch {}
-      sym = sym || b.coinType.split('::').pop(); if (!m_ok(dec)) dec = 9
+    let c = SUI_COINS[b.coinType]
+    if (!c) {
+      try { const m = (await g.getCoinMetadata({ coinType: b.coinType })).coinMetadata; c = { sym: m?.symbol || b.coinType.split('::').pop(), dec: m?.decimals ?? 9 } }
+      catch { c = { sym: b.coinType.split('::').pop(), dec: 9 } }
     }
-    return { symbol: sym, amount: Number(b.balance) / 10 ** dec }
+    return { symbol: c.sym, amount: Number(b.balance) / 10 ** c.dec }
   }))
-}
-const m_ok = (d) => Number.isFinite(d)
-
-async function suiFeed(address) {
-  const opts = { showBalanceChanges: true }
-  const [a, b] = await Promise.all(
-    [{ ToAddress: address }, { FromAddress: address }].map((filter) => rpc('sui', 'suix_queryTransactionBlocks', [{ filter, options: opts }, null, 25, true])),
-  )
-  const seen = new Set(), feed = []
-  for (const tx of [...(a.data || []), ...(b.data || [])]) {
-    if (seen.has(tx.digest)) continue
-    seen.add(tx.digest)
-    for (const ch of tx.balanceChanges || []) {
-      if (ch.owner?.AddressOwner?.toLowerCase() !== address.toLowerCase()) continue
-      const i = await info(ch.coinType)
-      const amt = Number(ch.amount) / 10 ** i.dec
-      if (amt) feed.push({ id: tx.digest + i.sym, dir: amt > 0 ? 'in' : 'out', amount: Math.abs(amt), coin: i.sym, ts: Number(tx.timestampMs) })
-    }
-  }
-  return feed.sort((x, y) => y.ts - x.ts)
 }
 
 router.post('/sui-activity', async (req, res) => {
   const address = String(req.body?.address || '')
   if (!/^0x[0-9a-fA-F]{1,64}$/.test(address)) return res.status(400).json({ success: false, error: 'Invalid Sui address' })
-  let raw
-  try { raw = await suiAssetsJson(address) }
-  catch (e1) {
-    try { raw = await suiAssetsGrpc(address) }
-    catch (e2) { return res.json({ success: false, error: `JSON-RPC: ${e1.message} | gRPC: ${e2.message}` }) }
-  }
-  let feed = [], note = ''
-  try { feed = await suiFeed(address) } catch (e) { note = 'Balances loaded. Recent activity is not available right now: ' + e.message }
-  const { assets, total } = await priced(raw)
-  res.json({ success: true, chain: 'sui', assets, total, feed: feed.slice(0, 30), note })
+  try {
+    const { assets, total } = await priced(await suiAssets(address))
+    res.json({ success: true, chain: 'sui', assets, total, feed: [], note: '' })
+  } catch (e) { res.json({ success: false, error: 'Sui (gRPC): ' + (e?.message || e) }) }
 })
 
 router.post('/evm-activity', async (req, res) => {
