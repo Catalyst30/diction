@@ -42,7 +42,6 @@ export function ThemeToggle() {
     </button>
   );
 }
-}
 
 export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onCount }: {
   open: boolean; onClose: () => void; safeToSpend: number; onBalance: (n: number) => void; onCount: (n: number) => void;
