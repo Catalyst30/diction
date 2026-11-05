@@ -30,6 +30,8 @@ import {
 
 import BecauseOfMemory from './BecauseOfMemory';
 
+   import { useProfile } from './auth';
+
 interface Bill {
   id: string;
   name: string;
