@@ -36,7 +36,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
   const [msg, setMsg] = useState('');
   const [suiWallets, setSuiWallets] = useState<any[]>([]);
   const [adding, setAdding] = useState(false);
-    const [pick, setPick] = useState<'' | 'sui' | 'evm'>('');
+    const [pick, setPick] = useState<'' | 'sui' | 'evm'>('sui');
   const [evmWallets, setEvmWallets] = useState<any[]>([]);
   useEffect(() => {
     const on = (e: any) => setEvmWallets((l) => (l.some((x) => x.info.uuid === e.detail.info.uuid) ? l : [...l, e.detail]));
@@ -130,7 +130,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
                   <p className="text-lg text-secondary">Choose the kind of wallet you use. Diction only reads it. Your money stays with you.</p>
                   <div className="flex flex-wrap gap-sm">
                     <button className={btn} onClick={() => setPick('sui')}>Sui wallet</button>
-                    <button className={btn} onClick={() => setPick('evm')}>EVM wallet</button>
+                
                   </div>
                   {pick === 'sui' && (
                     <div className="flex flex-col gap-sm">
