@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import WalletPanel from './WalletPanel';
+import WalletPanel, { ThemeToggle } from './WalletPanel';
 import { COUNTRIES } from './countries';
 import {
   Shield,
@@ -288,6 +288,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-sm shrink-0">
+            <ThemeToggle />
             <button
               onClick={() => setShowConnectWallet(true)}
               className="relative inline-flex size-11 items-center justify-center rounded-full bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
