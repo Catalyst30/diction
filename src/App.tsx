@@ -286,7 +286,7 @@ export default function App() {
               className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <Wallet className="size-6 text-brand-primary shrink-0" />
-              <span>Wallets ({walletCount})</span>
+             <span>{walletCount > 0 ? `Wallets (${walletCount})` : 'Connect wallet'}</span>
             </button>
             <button
               onClick={() => setNavTab('settings')}
