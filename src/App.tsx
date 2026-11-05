@@ -1153,13 +1153,14 @@ export default function App() {
       )}
 
       {/* Floating round button: Ask Diction */}
-      <button
-        onClick={() => setIsAssistantOpen(true)}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 rounded-full bg-brand-solid text-primary-on-brand shadow-lg hover:bg-brand-solid-hover p-md md:p-lg flex items-center gap-sm min-h-[56px] font-semibold text-lg focus-visible:ring-2 focus-visible:ring-focus-ring"
-      >
-        <MessageCircle className="size-7 shrink-0 text-fg-white" />
-        <span className="hidden md:inline pr-xs">Ask Diction</span>
-      </button>
+     <button
+  onClick={() => setIsAssistantOpen(true)}
+  aria-label="Ask Diction"
+  className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-solid text-primary-on-brand shadow-lg hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring md:size-auto md:gap-sm md:px-lg md:py-md md:font-semibold"
+>
+  <MessageCircle className="size-6 shrink-0 text-fg-white" />
+  <span className="hidden md:inline text-lg">Ask Diction</span>
+</button>
 
       {/* Assistant Chat Panel */}
       {isAssistantOpen && (
