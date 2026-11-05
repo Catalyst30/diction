@@ -95,7 +95,13 @@ export default function App() {
   const [taxRate, setTaxRate] = useState<number>(25);
   const [targetPaycheck, setTargetPaycheck] = useState<number>(3200);
   const [paydayDay, setPaydayDay] = useState<number>(1);
+     const profile = useProfile();
+     useEffect(() => {
+       if (!profile) return;
+       setUserName(profile.name); setCountry(profile.country); setTaxRate(profile.taxRate); setIsSetupDone(true);
+     }, [profile?.email, profile?.country]);
 
+  
   const [bufferBalance, setBufferBalance] = useState<number>(6850);
   const [taxSetAside, setTaxSetAside] = useState<number>(1712);
   const [paycheckFunded, setPaycheckFunded] = useState<number>(3200);
