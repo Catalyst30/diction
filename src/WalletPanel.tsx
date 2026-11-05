@@ -36,7 +36,14 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
   const [msg, setMsg] = useState('');
   const [suiWallets, setSuiWallets] = useState<any[]>([]);
   const [adding, setAdding] = useState(false);
-  const [pick, setPick] = useState<'' | 'sui'>('');
+    const [pick, setPick] = useState<'' | 'sui' | 'evm'>('');
+  const [evmWallets, setEvmWallets] = useState<any[]>([]);
+  useEffect(() => {
+    const on = (e: any) => setEvmWallets((l) => (l.some((x) => x.info.uuid === e.detail.info.uuid) ? l : [...l, e.detail]));
+    window.addEventListener('eip6963:announceProvider', on);
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    return () => window.removeEventListener('eip6963:announceProvider', on);
+  }, []);
     const prev = useRef<Record<string, number>>({});
   const [seen, setSeen] = useState<Item[]>([]);
 
@@ -55,9 +62,9 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
     try { const r = await w.features['standard:connect'].connect(); add({ type: 'Sui', address: r.accounts[0].address }); }
     catch (e: any) { setMsg('Could not connect: ' + (e?.message || 'cancelled')); }
   };
-  const connectEvm = async () => {
-    const eth = (window as any).ethereum;
-    if (!eth) { setMsg('No EVM wallet found in this browser. Install one (such as MetaMask or Rabby), then try again.'); return; }
+    const connectEvm = async (provider?: any) => {
+    const eth = provider || (window as any).ethereum;
+    if (!eth) { setMsg('No EVM wallet found in this browser. Install MetaMask or Rabby, refresh, and try again.'); return; }
     try { const a = await eth.request({ method: 'eth_requestAccounts' }); add({ type: 'EVM', address: a[0] }); }
     catch (e: any) { setMsg('Could not connect: ' + (e?.message || 'cancelled')); }
   };
@@ -123,12 +130,19 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
                   <p className="text-lg text-secondary">Choose the kind of wallet you use. Diction only reads it. Your money stays with you.</p>
                   <div className="flex flex-wrap gap-sm">
                     <button className={btn} onClick={() => setPick('sui')}>Sui wallet</button>
-                    <button className={btn} onClick={connectEvm}>EVM wallet</button>
+                    <button className={btn} onClick={() => setPick('evm')}>EVM wallet</button>
                   </div>
                   {pick === 'sui' && (
                     <div className="flex flex-col gap-sm">
                       {suiWallets.map((w) => <button key={w.name} className={btn} onClick={() => connectSui(w)}>{w.name}</button>)}
                       {!suiWallets.length && <p className="text-lg text-secondary">No Sui wallet found in this browser. Install Slush or Backpack, refresh, and try again.</p>}
+                    </div>
+                  )}
+                                    {pick === 'evm' && (
+                    <div className="flex flex-col gap-sm">
+                      {evmWallets.map((w) => <button key={w.info.uuid} className={btn} onClick={() => connectEvm(w.provider)}>{w.info.name}</button>)}
+                      {!evmWallets.length && (window as any).ethereum && <button className={btn} onClick={() => connectEvm()}>Browser wallet</button>}
+                      {!evmWallets.length && !(window as any).ethereum && <p className="text-lg text-secondary">No EVM wallet found in this browser. Install MetaMask or Rabby, refresh, and try again.</p>}
                     </div>
                   )}
                   {adding && <button className="text-lg text-secondary underline" onClick={() => { setAdding(false); setPick(''); }}>Back to my wallets</button>}
