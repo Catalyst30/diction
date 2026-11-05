@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { tatumRpc, tatumFetch } from '../tatum-client.mjs'
+import { SuiGrpcClient } from '@mysten/sui/grpc'
 
 const router = Router()
 const SUI = {
@@ -12,8 +13,11 @@ const STABLE = new Set(['USDC', 'USDT', 'DAI'])
 
 async function rpc(chain, method, params) {
   const r = await tatumRpc(chain, { jsonrpc: '2.0', id: 1, method, params })
-  const j = await r.json()
+  const text = await r.text()
+  let j
+  try { j = JSON.parse(text) } catch { throw new Error(`${method}: Tatum replied (${r.status}) ${text.slice(0, 160)}`) }
   if (j.error) throw new Error(`${method}: ${j.error.message || JSON.stringify(j.error)}`)
+  if (j.result === undefined) throw new Error(`${method}: empty reply from Tatum (${r.status}) ${text.slice(0, 160)}`)
   return j.result
 }
 
@@ -47,31 +51,58 @@ async function info(ct) {
   return v
 }
 
+async function suiAssetsJson(address) {
+  const bals = (await rpc('sui', 'suix_getAllBalances', [address])).filter((c) => Number(c.totalBalance)).slice(0, 12)
+  return Promise.all(bals.map(async (c) => { const i = await info(c.coinType); return { symbol: i.sym, amount: Number(c.totalBalance) / 10 ** i.dec } }))
+}
+
+async function suiAssetsGrpc(address) {
+  const g = new SuiGrpcClient({ network: 'mainnet', baseUrl: 'https://sui-mainnet.gateway.tatum.io', meta: { 'x-api-key': process.env.TATUM_API_KEY } })
+  const { balances } = await g.listBalances({ owner: address, limit: 50 })
+  const held = balances.filter((b) => Number(b.balance) > 0).slice(0, 12)
+  return Promise.all(held.map(async (b) => {
+    let sym = SUI[b.coinType], dec = 6
+    if (!sym) {
+      try { const m = (await g.getCoinMetadata({ coinType: b.coinType })).coinMetadata; sym = m?.symbol; dec = m?.decimals ?? 9 } catch {}
+      sym = sym || b.coinType.split('::').pop(); if (!m_ok(dec)) dec = 9
+    }
+    return { symbol: sym, amount: Number(b.balance) / 10 ** dec }
+  }))
+}
+const m_ok = (d) => Number.isFinite(d)
+
+async function suiFeed(address) {
+  const opts = { showBalanceChanges: true }
+  const [a, b] = await Promise.all(
+    [{ ToAddress: address }, { FromAddress: address }].map((filter) => rpc('sui', 'suix_queryTransactionBlocks', [{ filter, options: opts }, null, 25, true])),
+  )
+  const seen = new Set(), feed = []
+  for (const tx of [...(a.data || []), ...(b.data || [])]) {
+    if (seen.has(tx.digest)) continue
+    seen.add(tx.digest)
+    for (const ch of tx.balanceChanges || []) {
+      if (ch.owner?.AddressOwner?.toLowerCase() !== address.toLowerCase()) continue
+      const i = await info(ch.coinType)
+      const amt = Number(ch.amount) / 10 ** i.dec
+      if (amt) feed.push({ id: tx.digest + i.sym, dir: amt > 0 ? 'in' : 'out', amount: Math.abs(amt), coin: i.sym, ts: Number(tx.timestampMs) })
+    }
+  }
+  return feed.sort((x, y) => y.ts - x.ts)
+}
+
 router.post('/sui-activity', async (req, res) => {
   const address = String(req.body?.address || '')
   if (!/^0x[0-9a-fA-F]{1,64}$/.test(address)) return res.status(400).json({ success: false, error: 'Invalid Sui address' })
-  try {
-    const bals = (await rpc('sui', 'suix_getAllBalances', [address])).filter((c) => Number(c.totalBalance)).slice(0, 12)
-    const raw = await Promise.all(bals.map(async (c) => { const i = await info(c.coinType); return { symbol: i.sym, amount: Number(c.totalBalance) / 10 ** i.dec } }))
-    const { assets, total } = await priced(raw)
-    const opts = { showBalanceChanges: true }
-    const [a, b] = await Promise.all(
-      [{ ToAddress: address }, { FromAddress: address }].map((filter) => rpc('sui', 'suix_queryTransactionBlocks', [{ filter, options: opts }, null, 25, true])),
-    )
-    const seen = new Set(), feed = []
-    for (const tx of [...a.data, ...b.data]) {
-      if (seen.has(tx.digest)) continue
-      seen.add(tx.digest)
-      for (const ch of tx.balanceChanges || []) {
-        if (ch.owner?.AddressOwner?.toLowerCase() !== address.toLowerCase()) continue
-        const i = await info(ch.coinType)
-        const amt = Number(ch.amount) / 10 ** i.dec
-        if (amt) feed.push({ id: tx.digest + i.sym, dir: amt > 0 ? 'in' : 'out', amount: Math.abs(amt), coin: i.sym, ts: Number(tx.timestampMs) })
-      }
-    }
-    feed.sort((x, y) => y.ts - x.ts)
-    res.json({ success: true, chain: 'sui', assets, total, feed: feed.slice(0, 30) })
-  } catch (e) { res.json({ success: false, error: e.message }) }
+  let raw
+  try { raw = await suiAssetsJson(address) }
+  catch (e1) {
+    try { raw = await suiAssetsGrpc(address) }
+    catch (e2) { return res.json({ success: false, error: `JSON-RPC: ${e1.message} | gRPC: ${e2.message}` }) }
+  }
+  let feed = [], note = ''
+  try { feed = await suiFeed(address) } catch (e) { note = 'Balances loaded. Recent activity is not available right now: ' + e.message }
+  const { assets, total } = await priced(raw)
+  res.json({ success: true, chain: 'sui', assets, total, feed: feed.slice(0, 30), note })
 })
 
 router.post('/evm-activity', async (req, res) => {
