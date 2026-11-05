@@ -28,6 +28,8 @@ import {
    import { useLearning } from './learning';
    import LearningPanel, { MemoryFeed } from './LearningPanel';
 
+import BecauseOfMemory from './BecauseOfMemory';
+
 interface Bill {
   id: string;
   name: string;
@@ -233,7 +235,9 @@ export default function App() {
             buffer: bufferBalance,
             upcomingBills: billsDueBeforePayday,
             nextPaycheck: targetPaycheck,
-            userName
+                       userName,
+            clients: learning.stats.map((s) => ({ name: s.name, seen: s.n, avgLag: s.avgLag, before: s.before, trust: s.after })),
+            nextBill: [...bills].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
           }
         })
       });
