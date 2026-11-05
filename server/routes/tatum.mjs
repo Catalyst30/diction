@@ -119,39 +119,26 @@ router.post('/watch-evm', async (req, res) => {
 // Walrus Memory endpoints
 router.get('/walrus-status', (_req, res) => res.json(walrusStatus()))
 
-router.get('/memories', async (_req, res) => {
-  await hydrate()
-  res.json({
-    success: true,
-    memories: localMemories,
-  })
+router.get('/memories', async (req, res) => {
+  await hydrate(req.userId)
+  res.json({ success: true, memories: localMemories.filter((m) => m.userId === req.userId) })
 })
 
 router.post('/memories', async (req, res) => {
   const { type, text } = req.body
-  if (!text) {
-    return res.status(400).json({ error: 'Memory text is required' })
-  }
-  const result = await saveMemory(type || 'insight', text)
-  res.json(result)
+  if (!text) return res.status(400).json({ error: 'Memory text is required' })
+  res.json(await saveMemory(type || 'insight', text, req.userId))
 })
 
 router.delete('/memories/:id', async (req, res) => {
-  const { id } = req.params
-  const index = localMemories.findIndex((m) => m.id === id)
-  if (index !== -1) {
-    localMemories.splice(index, 1)
-  }
-  res.json({ success: true, id })
+  const i = localMemories.findIndex((m) => m.id === req.params.id && m.userId === req.userId)
+  if (i !== -1) localMemories.splice(i, 1)
+  res.json({ success: true, id: req.params.id })
 })
 
-// Hidden Admin Audit Log for Walrus Blob Proofs
-router.get('/admin/audit-blobs', async (_req, res) => {
-  res.json({
-    success: true,
-    auditLog: memoryAuditLog,
-    totalSaved: memoryAuditLog.length,
-  })
+router.get('/admin/audit-blobs', async (req, res) => {
+  const log = memoryAuditLog.filter((e) => e.userId === req.userId)
+  res.json({ success: true, auditLog: log, totalSaved: log.length })
 })
 
 // Assistant AI Endpoint
@@ -159,7 +146,7 @@ router.post('/ask-assistant', async (req, res) => {
   const { question, userContext = {} } = req.body || {}
   if (!question) return res.status(400).json({ error: 'Question is required' })
 
-  const recalled = await recallMemories(question, 6)
+  const recalled = await recallMemories(question, 6, req.userId)
   const { safeToSpend = 0, buffer = 0, upcomingBills = 0, nextPaycheck = 0, clients = [], nextBill } = userContext
   const money = (n) => '$' + Math.round(n).toLocaleString()
   const learned = clients.filter((c) => c.seen > 0).map((c) =>
@@ -194,7 +181,7 @@ router.post('/ask-assistant', async (req, res) => {
   }
 
   // Recall relevant memories from Walrus
-  const memories = await recallMemories(question)
+recallMemories(question, 8, req.userId)
   const safeToSpend = userContext?.safeToSpend ?? 0
   const buffer = userContext?.buffer ?? 0
   const upcomingBills = userContext?.upcomingBills ?? 0
