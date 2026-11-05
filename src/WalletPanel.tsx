@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 type W = { type: 'Sui' | 'EVM'; address: string };
 type Asset = { symbol: string; amount: number; usd: number | null };
@@ -37,6 +37,8 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
   const [suiWallets, setSuiWallets] = useState<any[]>([]);
   const [adding, setAdding] = useState(false);
   const [pick, setPick] = useState<'' | 'sui'>('');
+    const prev = useRef<Record<string, number>>({});
+  const [seen, setSeen] = useState<Item[]>([]);
 
   useEffect(() => {
     import('@mysten/wallet-standard').then((m) => {
@@ -70,7 +72,19 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
         try {
           const r = await fetch(`/api/wallet/${w.type.toLowerCase()}-activity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: w.address }) });
           const d = await r.json();
-          if (d.success) { next[w.address] = d; if (d.note) err = d.note; } else err = d.error;
+          if (d.success) {
+            next[w.address] = d; if (d.note) err = d.note;
+            const fresh: Item[] = []; const held = new Set<string>();
+            for (const a of d.assets) {
+              const k = w.address + '|' + a.symbol; held.add(k); const p = prev.current[k];
+              if (p !== undefined && Math.abs(a.amount - p) > 1e-9) fresh.push({ id: k + Date.now(), dir: a.amount > p ? 'in' : 'out', amount: Math.abs(a.amount - p), coin: a.symbol, ts: Date.now() });
+              prev.current[k] = a.amount;
+            }
+            for (const k of Object.keys(prev.current)) {
+              if (k.startsWith(w.address + '|') && !held.has(k) && prev.current[k] > 0) { fresh.push({ id: k + Date.now(), dir: 'out', amount: prev.current[k], coin: k.split('|')[1], ts: Date.now() }); prev.current[k] = 0; }
+            }
+            if (fresh.length) setSeen((s) => [...fresh, ...s].slice(0, 30));
+          } else err = d.error;
         } catch { err = 'Could not reach the server.'; }
       }
       if (!live) return;
@@ -85,7 +99,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
 
   const all = Object.values(data);
   const total = all.reduce((s, d) => s + d.total, 0);
-  const feed = all.flatMap((d) => d.feed).sort((a, b) => b.ts - a.ts);
+    const feed = [...seen, ...all.flatMap((d) => d.feed)].sort((a, b) => b.ts - a.ts);
   const weekOut = feed.filter((f) => f.dir === 'out' && f.ts > Date.now() - 7 * 864e5 && ['USDC', 'USDT', 'DAI'].includes(f.coin)).reduce((s, f) => s + f.amount, 0);
   const over = weekOut > safeToSpend && weekOut > 0;
   const btn = 'flex-1 min-w-[140px] rounded-lg border border-primary bg-primary px-lg py-md min-h-[64px] text-lg font-semibold text-primary shadow-xs hover:bg-primary-hover';
