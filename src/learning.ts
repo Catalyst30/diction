@@ -46,7 +46,7 @@ export function useLearning(base: any[], setBase: (f: (p: any[]) => any[]) => vo
       const r = await fetch('/api/tatum/memories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'client_lag', text }) });
       const d = await r.json();
       if (d?.memory) setMemories((p) => [d.memory, ...p]);
-      return d?.memory?.status || 'unknown';
+           return d?.memory?.status || (d?.error ? 'error: ' + d.error : 'unknown');
     } catch { return 'failed'; }
   };
 
