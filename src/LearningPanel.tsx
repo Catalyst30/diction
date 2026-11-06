@@ -1,191 +1,84 @@
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
-
-const tone = (v: number) =>
-  v >= 0.75
-    ? 'var(--color-text-success-primary, #067647)'
-    : v >= 0.5
-    ? 'var(--color-text-warning-primary, #B54708)'
-    : 'var(--color-text-error-primary, #B42318)';
 
 export default function LearningPanel({ learning }: { learning: any }) {
   const names: string[] = learning.stats.map((s: any) => s.name);
-  const [name, setName] = useState(names[0] || '');
+  const today = new Date().toISOString().slice(0, 10);
+  const [cName, setCName] = useState('');
+  const [cAmount, setCAmount] = useState('');
+  const [cDue, setCDue] = useState('');
+  const [cDur, setCDur] = useState('One-time');
+  const [name, setName] = useState('');
   const [expected, setExpected] = useState('');
-  const [received, setReceived] = useState(new Date().toISOString().slice(0, 10));
+  const [received, setReceived] = useState(today);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
-  const field =
-    'rounded-xl bg-primary px-lg py-sm text-md text-primary border border-primary min-h-[52px] w-full focus-visible:ring-2 focus-visible:ring-focus-ring';
+  const field = 'rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary min-h-[56px] w-full';
+  const lab = 'flex flex-col gap-xs text-sm font-medium text-secondary';
+  const primary = 'inline-flex items-center justify-center rounded-lg bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand disabled:opacity-60';
 
-  const save = async () => {
-    setBusy(true);
-    setNote('');
-    const s = await learning.record(name, received, expected || undefined);
-     setNote(s === 'confirmed' ? 'Saved to Walrus. Diction has updated how much it trusts this client.' : s === 'skipped' ? 'Pick a client and a date first.' : s.startsWith('error') ? 'Could not save: ' + s.slice(7) : 'Recorded. It will finish saving to Walrus shortly.');
+  const addClient = () => {
+    const a = Number(cAmount);
+    if (!cName.trim() || !(a > 0) || !cDue) { setNote('Enter the client name, an amount above zero and the due date.'); return; }
+    learning.add({ client: cName.trim(), amount: a, expectedDate: cDue, duration: cDur });
+    setCName(''); setCAmount(''); setCDue(''); setNote('Client added.');
+  };
+  const record = async () => {
+    const who = name || names[0];
+    if (!who) { setNote('Add a client first.'); return; }
+    setBusy(true); setNote('');
+    const s = await learning.record(who, received, expected || undefined);
+    setNote(s === 'confirmed' ? 'Saved to Walrus. Diction has updated how much it trusts this client.' : s === 'skipped' ? 'Pick a client and a date first.' : s.startsWith('error') ? 'Could not save: ' + s.slice(7) : 'Recorded. It will finish saving to Walrus shortly.');
     setBusy(false);
   };
 
   return (
-    <section className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs flex flex-col gap-lg">
-      <div>
-        <h3 className="text-xl font-semibold text-primary">How Diction is learning your clients</h3>
-        <p className="mt-xs text-md text-tertiary">
-          Every payment timing is saved to Walrus. It changes how much expected income counts toward your safe-to-spend number.
-        </p>
-      </div>
+    <section className="rounded-lg border border-secondary bg-primary p-lg shadow-xs flex flex-col gap-md">
+      <h3 className="text-xl font-semibold text-primary">How Diction is learning your clients</h3>
+      <p className="text-lg text-secondary">Every payment timing is saved to Walrus. It changes how much expected income counts toward your safe-to-spend number.</p>
 
-      <ul className="flex flex-col gap-sm">
-        {learning.stats.map((s: any) => {
-          const pct = Math.round(s.after * 100);
-          const was = Math.round(s.before * 100);
-          return (
-            <li key={s.name} className="rounded-xl border border-secondary bg-secondary p-md">
-              <div className="flex items-start justify-between gap-md">
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold text-primary">{s.name}</p>
-                  <p className="text-sm text-tertiary">
-                    {s.n} {s.n === 1 ? 'payment' : 'payments'} seen ·{' '}
-                    {s.avgLag > 0 ? `usually ${s.avgLag} days late` : 'usually on time'}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-xl font-bold leading-none" style={{ color: tone(s.after) }}>{pct}%</p>
-                  <p className="mt-xxs text-xs text-tertiary">{was !== pct ? `was ${was}%` : 'trust'}</p>
-                </div>
-              </div>
-              <div className="mt-sm h-2 w-full overflow-hidden rounded-full bg-primary">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${Math.max(4, pct)}%`, background: tone(s.after) }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      <div className="border-t border-secondary pt-lg flex flex-col gap-md">
-        <p className="text-md font-semibold text-primary">Record a payment</p>
-        <div className="grid gap-md sm:grid-cols-3">
-          <label className="flex flex-col gap-xs text-sm font-medium text-secondary">
-            Client
-            <select className={field} value={name} onChange={(e) => setName(e.target.value)}>
-              {names.map((n) => (
-                <option key={n}>{n}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-xs text-sm font-medium text-secondary">
-            Date it was due (optional)
-            <input type="date" className={field} value={expected} onChange={(e) => setExpected(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-xs text-sm font-medium text-secondary">
-            Date it was paid
-            <input type="date" className={field} value={received} onChange={(e) => setReceived(e.target.value)} />
+      <div className="rounded-lg border border-secondary bg-secondary p-md flex flex-col gap-sm">
+        <p className="text-lg font-semibold text-primary">Add a client</p>
+        <div className="grid gap-sm sm:grid-cols-2">
+          <label className={lab}>Client or company name<input className={field} value={cName} onChange={(e) => setCName(e.target.value)} /></label>
+          <label className={lab}>Amount ($)<input className={field} type="number" min="0" value={cAmount} onChange={(e) => setCAmount(e.target.value)} /></label>
+          <label className={lab}>Due date<input className={field} type="date" value={cDue} onChange={(e) => setCDue(e.target.value)} /></label>
+          <label className={lab}>How often they pay you
+            <select className={field} value={cDur} onChange={(e) => setCDur(e.target.value)}><option>One-time</option><option>Weekly</option><option>Monthly</option></select>
           </label>
         </div>
-        <button
-          onClick={save}
-          disabled={busy}
-          className="inline-flex items-center justify-center rounded-xl bg-brand-solid px-lg py-sm min-h-[52px] text-md font-semibold text-primary-on-brand hover:bg-brand-solid-hover disabled:opacity-60"
-        >
-          {busy ? 'Saving to Walrus...' : 'Record payment timing'}
-        </button>
-        {note && <p className="rounded-lg bg-secondary p-md text-md text-secondary">{note}</p>}
+        <button onClick={addClient} className={primary}>Add client</button>
       </div>
-    </section>
-  );
-}
 
-const LABEL: Record<string, string> = {
-  client_lag: 'Payment timing',
-  user_note: 'Your note',
-  payment_received: 'Payment received',
-};
-
-const fmt = (iso: string) => {
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-function tidy(m: any) {
-  const raw = String(m.text || '');
-  const tag = /^\[([a-z_]+)\]\s*/i.exec(raw);
-  const type = tag?.[1] || m.type || 'note';
-  let body = raw.replace(/^\[[a-z_]+\]\s*/i, '');
-  let detail = '';
-  const x = /\s*PAYMENT_LAG client=(.+?) expected=(\d{4}-\d{2}-\d{2}) received=(\d{4}-\d{2}-\d{2}) lag=(-?\d+)\s*$/.exec(body);
-  if (x) {
-    body = body.slice(0, x.index).trim();
-    detail = `Due ${fmt(x[2])} · Paid ${fmt(x[3])}`;
-  }
-  body = body.replace(/^Client payment:\s*/, '');
-  return { type, label: LABEL[type] || type.replace(/_/g, ' '), body, detail };
-}
-
-export function MemoryFeed({ memories, onDelete }: { memories: any[]; onDelete: (id: string) => void }) {
-  const [all, setAll] = useState(false);
-  const shown = all ? memories : memories.slice(0, 5);
-
-  if (memories.length === 0) {
-    return (
-      <div className="rounded-2xl border border-secondary bg-primary p-xl text-center text-md text-secondary">
-        No memories saved yet. Log payments and teach Diction your client habits.
-      </div>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-md">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-primary">Saved memories ({memories.length})</h3>
-      </div>
-      <ul className="flex flex-col gap-sm">
-        {shown.map((m) => {
-          const t = tidy(m);
-          const saved = m.status === 'confirmed';
-          return (
-            <li key={m.id} className="flex items-start gap-md rounded-2xl border border-secondary bg-primary p-lg shadow-xs">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-sm">
-                  <span className="rounded-full border border-secondary bg-secondary px-md py-xxs text-xs font-semibold text-secondary">
-                    {t.label}
-                  </span>
-                  <span className="text-xs text-tertiary">{fmt(m.createdAt)}</span>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-md py-xxs text-xs font-medium ${
-                      saved
-                        ? 'border-utility-success-200 bg-utility-success-50 text-utility-success-700'
-                        : 'border-utility-warning-200 bg-utility-warning-50 text-utility-warning-700'
-                    }`}
-                  >
-                    {saved ? 'Saved' : 'Saving…'}
-                  </span>
-                </div>
-                <p className="mt-sm break-words text-md font-semibold text-primary">{t.body}</p>
-                {t.detail && <p className="mt-xxs text-sm text-tertiary">{t.detail}</p>}
-              </div>
-              <button
-                onClick={() => onDelete(m.id)}
-                aria-label="Delete this memory"
-                title="Delete this memory"
-                className="shrink-0 rounded-md p-sm text-tertiary hover:text-error-primary"
-              >
-                <Trash2 className="size-5" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {memories.length > 5 && (
-        <button
-          onClick={() => setAll(!all)}
-          className="self-center rounded-full border border-primary bg-primary px-lg py-sm text-sm font-semibold text-secondary shadow-xs hover:bg-primary-hover"
-        >
-          {all ? 'Show less' : `Show all ${memories.length}`}
-        </button>
+      {names.length === 0 && <p className="text-lg text-secondary">No clients yet. Add your first client above.</p>}
+      {names.length > 0 && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-lg">
+              <thead><tr className="text-sm text-secondary"><th className="py-sm pr-md">Client</th><th className="pr-md">Payments seen</th><th className="pr-md">Usually late by</th><th>Trust</th></tr></thead>
+              <tbody>
+                {learning.stats.map((s: any) => (
+                  <tr key={s.name} className="border-t border-secondary">
+                    <td className="py-sm pr-md font-semibold text-primary">{s.name}</td>
+                    <td className="pr-md text-secondary">{s.n}</td>
+                    <td className="pr-md text-secondary">{s.avgLag} days</td>
+                    <td className="font-semibold text-primary">{Math.round(s.before * 100)}% → {Math.round(s.after * 100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-lg font-semibold text-primary">Record when a client paid</p>
+          <div className="grid gap-sm sm:grid-cols-3">
+            <label className={lab}>Client
+              <select className={field} value={name || names[0]} onChange={(e) => setName(e.target.value)}>{names.map((n) => <option key={n}>{n}</option>)}</select>
+            </label>
+            <label className={lab}>Date it was due (optional)<input type="date" className={field} value={expected} onChange={(e) => setExpected(e.target.value)} /></label>
+            <label className={lab}>Date it was paid<input type="date" className={field} value={received} onChange={(e) => setReceived(e.target.value)} /></label>
+          </div>
+          <button onClick={record} disabled={busy} className={primary}>{busy ? 'Saving to Walrus...' : 'Record payment timing'}</button>
+        </>
       )}
+      {note && <p className="text-lg text-secondary">{note}</p>}
     </section>
   );
 }
