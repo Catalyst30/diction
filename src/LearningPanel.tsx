@@ -5,7 +5,7 @@ export default function LearningPanel({ learning }: { learning: any }) {
   const today = new Date().toISOString().slice(0, 10);
   const [cName, setCName] = useState('');
   const [cAmount, setCAmount] = useState('');
-  const [cDue, setCDue] = useState('today');
+  useState('today');
   const [cDur, setCDur] = useState('One-time');
   const [name, setName] = useState('');
   const [expected, setExpected] = useState('');
@@ -18,9 +18,12 @@ export default function LearningPanel({ learning }: { learning: any }) {
 
   const addClient = () => {
     const a = Number(cAmount);
+    
       if (!cName.trim()) { setNote('Please enter the client or company name.'); return; }
      if (!(a > 0)) { setNote('Please enter an amount above zero.'); return; }
-     if (!cDue) { setNote('Please pick a valid due date. Check the day exists, for example November has only 30 days.'); return; };
+     if (!cDue) { setNote('Please pick a valid due date. Check the day exists, for example November has only 30 days.'); return; }
+
+    
   const record = async () => {
     const who = name || names[0];
     if (!who) { setNote('Add a client first.'); return; }
