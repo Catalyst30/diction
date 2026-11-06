@@ -6,6 +6,7 @@ import { taxFor, hasRate } from './taxRates';
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const supabase = url && anon ? createClient(url, anon) : null;
+
 if (supabase && typeof window !== 'undefined') {
   const orig = window.fetch.bind(window);
   window.fetch = async (input: any, init: any = {}) => {
@@ -22,9 +23,24 @@ if (supabase && typeof window !== 'undefined') {
 export type Profile = { name: string; country: string; gender: string; age: number; work: string; taxRate: number; email: string };
 const Ctx = createContext<Profile | null>(null);
 export const useProfile = () => useContext(Ctx);
+export const signOut = () => supabase?.auth.signOut();
 
-const field = 'rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary min-h-[56px] w-full';
-const label = 'flex flex-col gap-xs text-sm font-medium text-secondary';
+const GRADIENT = 'linear-gradient(145deg, #312E81 0%, #4F46E5 55%, #818CF8 100%)';
+const input = 'w-full rounded-xl border border-secondary bg-secondary px-lg py-sm min-h-[56px] text-lg text-primary';
+const label = 'flex flex-col gap-xs text-sm font-semibold text-primary';
+
+function Logo({ onDark }: { onDark?: boolean }) {
+  return (
+    <div className="flex items-center gap-sm">
+      <span className="flex size-12 items-center justify-center rounded-full" style={{ background: onDark ? '#fff' : '#4F46E5' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={onDark ? '#4F46E5' : '#fff'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+        </svg>
+      </span>
+      <span className="text-3xl font-bold" style={{ color: onDark ? '#fff' : undefined }}>Diction</span>
+    </div>
+  );
+}
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
@@ -32,6 +48,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<'in' | 'up'>('up');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [gender, setGender] = useState('');
@@ -73,58 +90,83 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     const under18 = mode === 'up' && Number(age) >= 13 && Number(age) < 18;
+    const steps = ['Create your account', 'Tell us about your work', 'Connect your wallet'];
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center gap-md p-lg">
-        <h1 className="text-3xl font-semibold text-primary">Diction</h1>
-        <p className="text-lg text-secondary">Earn and spend wisely, without going broke.</p>
-        <div className="flex gap-sm">
-          {(['up', 'in'] as const).map((m) => (
-            <button key={m} onClick={() => { setMode(m); setError(''); setInfo(''); }}
-              className={`flex-1 rounded-lg border min-h-[56px] text-lg font-semibold ${mode === m ? 'bg-brand-solid text-primary-on-brand border-transparent' : 'bg-primary text-secondary border-primary'}`}>
-              {m === 'up' ? 'Create account' : 'Sign in'}
-            </button>
-          ))}
-        </div>
-        <label className={label}>Email<input className={field} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-        <label className={label}>Password (8 or more characters)<input className={field} type="password" autoComplete={mode === 'up' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        {mode === 'up' && (
-          <>
-            <label className={label}>Your name<input className={field} value={name} onChange={(e) => setName(e.target.value)} /></label>
-            <label className={label}>Country
-              <select className={field} value={country} onChange={(e) => setCountry(e.target.value)}>
-                <option value="">Choose your country</option>
-                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-            {country && (
-              <p className="text-sm text-secondary">
-                Estimated tax rate for {country}: <b className="text-primary">{taxFor(country)}%</b>{hasRate(country) ? '' : ' (a general estimate, as we have no figure for this country)'}. This is set for you automatically.
-              </p>
-            )}
-            <label className={label}>Gender
-              <select className={field} value={gender} onChange={(e) => setGender(e.target.value)}>
-                <option value="">Choose one</option>
-                <option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option>
-              </select>
-            </label>
-            <label className={label}>Age<input className={field} type="number" min={13} max={120} value={age} onChange={(e) => setAge(e.target.value)} /></label>
-            <label className={label}>The work you do<input className={field} placeholder="For example: graphic designer" value={work} onChange={(e) => setWork(e.target.value)} /></label>
-            {under18 && (
-              <div className="rounded-lg border border-secondary bg-secondary p-md text-lg text-primary">
-                You are under 18. Please talk to a parent or guardian before using Diction to make money decisions.
-                <label className="mt-sm flex items-start gap-sm">
-                  <input type="checkbox" className="mt-1 size-5" checked={parent} onChange={(e) => setParent(e.target.checked)} />
-                  <span>A parent or guardian knows I am using Diction.</span>
-                </label>
+      <main className="grid min-h-screen bg-primary lg:grid-cols-2">
+        <aside className="flex flex-col justify-between gap-xl p-xl" style={{ background: GRADIENT, color: '#fff' }}>
+          <Logo onDark />
+          <div className="flex flex-col gap-sm">
+            <span className="w-fit rounded-full px-lg py-xs text-sm font-semibold" style={{ background: 'rgba(255,255,255,.2)' }}>Built for freelancers</span>
+            <h1 className="text-4xl font-semibold lg:text-5xl">Start your journey</h1>
+            <p className="text-lg" style={{ opacity: 0.9 }}>Earn and spend wisely, without going broke.</p>
+          </div>
+          <div className="hidden gap-sm lg:grid lg:grid-cols-3">
+            {steps.map((s, i) => (
+              <div key={s} className="flex min-h-[130px] flex-col justify-between rounded-xl p-md" style={i === 0 ? { background: '#fff', color: '#312E81' } : { background: 'rgba(255,255,255,.18)' }}>
+                <span className="flex size-8 items-center justify-center rounded-full text-sm font-bold" style={i === 0 ? { background: '#4F46E5', color: '#fff' } : { border: '1px solid rgba(255,255,255,.7)' }}>{i + 1}</span>
+                <span className="text-lg font-semibold">{s}</span>
               </div>
+            ))}
+          </div>
+        </aside>
+        <section className="flex items-center justify-center p-lg">
+          <div className="flex w-full max-w-md flex-col gap-md">
+            <h2 className="text-center text-3xl font-semibold text-primary">{mode === 'up' ? 'Join Diction' : 'Welcome back'}</h2>
+            <label className={label}>Email<input className={input} type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+            <label className={label}>Password
+              <span className="relative block">
+                <input className={input} type={show ? 'text' : 'password'} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <button type="button" onClick={() => setShow(!show)} className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-secondary">{show ? 'Hide' : 'Show'}</button>
+              </span>
+            </label>
+            {mode === 'up' && (
+              <>
+                <div className="grid gap-md sm:grid-cols-2">
+                  <label className={label}>Your name<input className={input} value={name} onChange={(e) => setName(e.target.value)} /></label>
+                  <label className={label}>Age<input className={input} type="number" min={13} max={120} value={age} onChange={(e) => setAge(e.target.value)} /></label>
+                </div>
+                <label className={label}>Country
+                  <select className={input} value={country} onChange={(e) => setCountry(e.target.value)}>
+                    <option value="">Choose your country</option>
+                    {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </label>
+                {country && (
+                  <p className="-mt-sm text-sm text-secondary">Estimated tax rate for {country}: <b className="text-primary">{taxFor(country)}%</b>{hasRate(country) ? '' : ' (a general estimate)'}. Set automatically.</p>
+                )}
+                <div className="grid gap-md sm:grid-cols-2">
+                  <label className={label}>Gender
+                    <select className={input} value={gender} onChange={(e) => setGender(e.target.value)}>
+                      <option value="">Choose one</option>
+                      <option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option>
+                    </select>
+                  </label>
+                  <label className={label}>The work you do<input className={input} placeholder="e.g. Motion designer" value={work} onChange={(e) => setWork(e.target.value)} /></label>
+                </div>
+                {under18 && (
+                  <div className="rounded-xl border border-secondary bg-secondary p-md text-lg text-primary">
+                    You are under 18. Please talk to a parent or guardian before using Diction to make money decisions.
+                    <label className="mt-sm flex items-start gap-sm">
+                      <input type="checkbox" className="mt-1 size-5" checked={parent} onChange={(e) => setParent(e.target.checked)} />
+                      <span>A parent or guardian knows I am using Diction.</span>
+                    </label>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-        {error && <p className="text-lg font-semibold" style={{ color: 'var(--color-text-error-primary, #B42318)' }}>{error}</p>}
-        {info && <p className="text-lg text-primary">{info}</p>}
-        <button onClick={submit} disabled={busy} className="rounded-lg bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand disabled:opacity-60">
-          {busy ? 'Please wait...' : mode === 'up' ? 'Create my account' : 'Sign in'}
-        </button>
+            {error && <p className="text-lg font-semibold" style={{ color: '#B42318' }}>{error}</p>}
+            {info && <p className="text-lg text-primary">{info}</p>}
+            <button onClick={submit} disabled={busy} className="min-h-[56px] rounded-xl px-lg py-sm text-lg font-semibold disabled:opacity-60" style={{ background: '#4F46E5', color: '#fff' }}>
+              {busy ? 'Please wait...' : mode === 'up' ? 'Create my account' : 'Sign in'}
+            </button>
+            <p className="text-center text-lg text-secondary">
+              {mode === 'up' ? 'Already have an account? ' : 'New to Diction? '}
+              <button className="font-semibold underline" style={{ color: '#4F46E5' }} onClick={() => { setMode(mode === 'up' ? 'in' : 'up'); setError(''); setInfo(''); }}>
+                {mode === 'up' ? 'Sign in' : 'Create an account'}
+              </button>
+            </p>
+          </div>
+        </section>
       </main>
     );
   }
@@ -137,9 +179,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <div className="bg-secondary p-md text-center text-lg text-primary">Under 18? Please ask a parent or guardian before making money decisions with Diction.</div>
       )}
       {children}
-      <button onClick={() => supabase.auth.signOut()} className="fixed bottom-20 left-4 z-40 rounded-lg border border-primary bg-primary px-lg py-sm min-h-[48px] text-sm font-semibold text-secondary shadow-xs">
-        Sign out
-      </button>
     </Ctx.Provider>
   );
 }
