@@ -98,7 +98,7 @@ export default function App() {
   const [userName, setUserName] = useState<string>('Alex');
   const [country, setCountry] = useState<string>('United States');
   const [taxRate, setTaxRate] = useState<number>(25);
-  const [targetPaycheck, setTargetPaycheck] = useState<number>(3200);
+  const [targetPaycheck, setTargetPaycheck] = useState<number>(0);
   const [paydayDay, setPaydayDay] = useState<number>(1);
      const profile = useProfile();
      useEffect(() => {
@@ -120,7 +120,7 @@ export default function App() {
 
   const [showLogPayment, setShowLogPayment] = useState<boolean>(false);
   const [logAmount, setLogAmount] = useState<number>(1000);
-  const [logClientName, setLogClientName] = useState<string>('Apex Studio');
+  const [logClientName, setLogClientName] = useState<string>('');
   const [recentBreakdown, setRecentBreakdown] = useState<PaymentBreakdown | null>(null);
 
   const [connectedWallets, setConnectedWallets] = useState<Array<{ address: string; type: 'Sui' | 'EVM'; balance: number }>>([
@@ -715,7 +715,8 @@ export default function App() {
         )}
 
         {/* ================= SECTION: TAXES ================= */}
-        {navTab === 'taxes' && (
+           {navTab === 'taxes' && <TaxPage taxRate={taxRate} setTaxRate={setTaxRate} taxSetAside={taxSetAside} country={country} showToast={showToast} />}
+        {false && (
           <div className="space-y-xl">
             <div>
               <h2 className="text-heading-sm font-semibold text-primary">Tax Set Aside</h2>
@@ -764,7 +765,8 @@ export default function App() {
         )}
 
         {/* ================= SECTION: MY PAYCHECK ================= */}
-        {navTab === 'paycheck' && (
+           {navTab === 'paycheck' && <PaycheckPage target={targetPaycheck} setTarget={setTargetPaycheck} day={paydayDay} setDay={setPaydayDay} funded={paycheckFunded} showToast={showToast} onPay={() => showToast('Paycheck transfer prepared for your connected wallet to approve.')} />}
+        {false && (
           <div className="space-y-xl">
             <div>
               <h2 className="text-heading-sm font-semibold text-primary">My Personal Paycheck</h2>
@@ -1074,17 +1076,8 @@ export default function App() {
               </p>
 
               <div className="flex flex-col gap-sm">
-                <label className="text-sm font-medium text-secondary">Who paid you?</label>
-                <select
-                  value={logClientName}
-                  onChange={e => setLogClientName(e.target.value)}
-                  className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
-                >
-                  <option value="Apex Studio">Apex Studio</option>
-                  <option value="Nordic Brand House">Nordic Brand House</option>
-                  <option value="HyperFlow Media">HyperFlow Media</option>
-                  <option value="Other Client">Other Client / New Client</option>
-                </select>
+                  <WhoPaid names={clients.map((c) => c.client)} value={logClientName} onChange={setLogClientName} /> 
+               
               </div>
 
               <div className="flex flex-col gap-sm">
@@ -1107,7 +1100,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  processNewPayment(logAmount, logClientName);
+                  processNewPayment(logAmount, logClientName || 'Other client');
                   setShowLogPayment(false);
                 }}
                 className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
