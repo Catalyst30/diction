@@ -22,13 +22,7 @@ export default function LearningPanel({ learning }: { learning: any }) {
     setBusy(true);
     setNote('');
     const s = await learning.record(name, received, expected || undefined);
-    setNote(
-      s === 'confirmed'
-        ? 'Saved to Walrus. Diction has updated how much it trusts this client.'
-        : s === 'skipped'
-        ? 'Pick a client and a date first.'
-        : 'Recorded. It will finish saving to Walrus shortly.'
-    );
+     setNote(s === 'confirmed' ? 'Saved to Walrus. Diction has updated how much it trusts this client.' : s === 'skipped' ? 'Pick a client and a date first.' : s.startsWith('error') ? 'Could not save: ' + s.slice(7) : 'Recorded. It will finish saving to Walrus shortly.');
     setBusy(false);
   };
 
