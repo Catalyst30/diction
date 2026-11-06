@@ -31,6 +31,8 @@ import {
 import BecauseOfMemory from './BecauseOfMemory';
 
    import { useProfile } from './auth';
+   import AccountMenu from './AccountMenu';
+   import AddBillModal from './AddBillModal';
 
 interface Bill {
   id: string;
@@ -102,23 +104,16 @@ export default function App() {
      }, [profile?.email, profile?.country]);
 
   
-  const [bufferBalance, setBufferBalance] = useState<number>(6850);
-  const [taxSetAside, setTaxSetAside] = useState<number>(1712);
+   const [bufferBalance, setBufferBalance] = useState<number>(0);
+   const [showAccount, setShowAccount] = useState(false);
+   const [showAddBill, setShowAddBill] = useState(false);
+  const [taxSetAside, setTaxSetAside] = useState<number>(0);
   const [paycheckFunded, setPaycheckFunded] = useState<number>(3200);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [bills, setBills] = useState<Bill[]>([
-    { id: 'b1', name: 'Apartment Rent', amount: 1400, dueDate: '2026-11-05', recurring: 'monthly' },
-    { id: 'b2', name: 'Health Insurance', amount: 380, dueDate: '2026-11-12', recurring: 'monthly' },
-    { id: 'b3', name: 'Software & Tools', amount: 145, dueDate: '2026-11-18', recurring: 'monthly' },
-    { id: 'b4', name: 'Fiber Internet', amount: 85, dueDate: '2026-11-20', recurring: 'monthly' },
-  ]);
+     const [bills, setBills] = useState<Bill[]>([]);
 
-  const [clients, setClients] = useState<ClientPayment[]>([
-    { id: 'c1', client: 'Apex Studio', amount: 3800, expectedDate: '2026-11-08', historicalLagDays: 14, reliabilityScore: 0.65, status: 'pending' },
-    { id: 'c2', client: 'Nordic Brand House', amount: 1950, expectedDate: '2026-11-22', historicalLagDays: 3, reliabilityScore: 0.90, status: 'pending' },
-    { id: 'c3', client: 'HyperFlow Media', amount: 1200, expectedDate: '2026-10-28', historicalLagDays: 21, reliabilityScore: 0.70, status: 'received' },
-  ]);
+    const [clients, setClients] = useState<ClientPayment[]>([]);
 
   const [showLogPayment, setShowLogPayment] = useState<boolean>(false);
   const [logAmount, setLogAmount] = useState<number>(1000);
@@ -194,7 +189,7 @@ export default function App() {
     const safeSpendPart = remaining - bufferPart;
 
     setTaxSetAside(prev => prev + taxPart);
-    setBufferBalance(prev => prev + bufferPart + billsPart);
+       setBufferBalance(prev => prev + amount);
     setPaycheckFunded(prev => prev + paycheckPart);
 
     const breakdown: PaymentBreakdown = {
@@ -314,7 +309,7 @@ export default function App() {
               )}
             </button>
             <button
-              onClick={() => setNavTab('settings')}
+              onClick={() => setShowAccount(true)}
               className="inline-flex size-11 items-center justify-center rounded-full bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               title="Settings"
             >
@@ -675,23 +670,7 @@ export default function App() {
                 <p className="text-md text-tertiary">Everything due before your next payday is reserved in full.</p>
               </div>
               <button
-                onClick={() => {
-                  const billName = prompt('Enter bill name:');
-                  const amount = prompt('Enter bill amount:');
-                  if (billName && amount) {
-                    setBills(prev => [
-                      ...prev,
-                      {
-                        id: 'b_' + Date.now(),
-                        name: billName,
-                        amount: Number(amount),
-                        dueDate: '2026-11-25',
-                        recurring: 'monthly'
-                      }
-                    ]);
-                    showToast('Bill added.');
-                  }
-                }}
+                   onClick={() => setShowAddBill(true)}
                 className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 <Plus className="size-6 shrink-0 text-fg-white" />
@@ -1069,6 +1048,8 @@ export default function App() {
         </div>
       )}
          <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setBufferBalance} onCount={setWalletCount} />
+         <AccountMenu open={showAccount} onClose={() => setShowAccount(false)} taxRate={taxRate} />
+   <AddBillModal open={showAddBill} onClose={() => setShowAddBill(false)} onSave={(b) => { setBills(prev => [...prev, { id: 'b_' + Date.now(), ...b }]); showToast('Bill added.'); }} />
       {/* Modal: Log a Payment */}
       {showLogPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
