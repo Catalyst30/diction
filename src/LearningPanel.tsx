@@ -82,3 +82,43 @@ export default function LearningPanel({ learning }: { learning: any }) {
     </section>
   );
 }
+
+const pretty = (d: string) =>
+  d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+export function MemoryFeed({ memories, onDelete }: { memories: any[]; onDelete: (id: string) => void }) {
+  const items = memories || [];
+  return (
+    <section className="flex flex-col gap-md">
+      <h3 className="text-xl font-semibold text-primary">Saved memories ({items.length})</h3>
+      {items.length === 0 && (
+        <div className="rounded-lg border border-secondary bg-primary p-lg text-center text-lg text-secondary">
+          No memories saved yet. Log payments and teach Diction your client habits.
+        </div>
+      )}
+      {items.map((m) => {
+        const lag = /PAYMENT_LAG client=(.+?) expected=(\d{4}-\d{2}-\d{2}) received=(\d{4}-\d{2}-\d{2}) lag=(-?\d+)/.exec(m.text || '');
+        const clean = (m.text || '').replace(/^\[[^\]]*\]\s*/, '');
+        const n = lag ? Number(lag[4]) : 0;
+        const title = lag ? `${lag[1]} paid ${n > 0 ? n + ' days late' : n < 0 ? -n + ' days early' : 'on time'}.` : clean;
+        const saved = m.status === 'confirmed';
+        return (
+          <div key={m.id} className="flex items-start justify-between gap-md rounded-lg border border-secondary bg-primary p-lg">
+            <div className="flex flex-col gap-xs">
+              <div className="flex flex-wrap items-center gap-sm text-sm text-secondary">
+                <span className="rounded-full border border-secondary px-md py-xs font-semibold">{lag ? 'Payment timing' : 'Your note'}</span>
+                {m.createdAt && <span>{pretty(String(m.createdAt).slice(0, 10))}</span>}
+                <span className="rounded-full px-md py-xs font-semibold" style={saved ? { background: '#ECFDF3', color: '#067647' } : { background: '#FFFAEB', color: '#B54708' }}>
+                  {saved ? 'Saved' : m.status === 'failed' ? 'Not saved' : 'Saving...'}
+                </span>
+              </div>
+              <p className="text-lg font-semibold text-primary">{title}</p>
+              {lag && <p className="text-sm text-secondary">Due {pretty(lag[2])} · Paid {pretty(lag[3])}</p>}
+            </div>
+            <button onClick={() => onDelete(m.id)} className="min-h-[44px] rounded-lg px-md text-sm font-semibold text-secondary hover:bg-primary-hover">Remove</button>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
