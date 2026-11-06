@@ -33,6 +33,9 @@ import BecauseOfMemory from './BecauseOfMemory';
    import { useProfile } from './auth';
    import AccountMenu from './AccountMenu';
    import AddBillModal from './AddBillModal';
+   import TaxPage from './TaxPage';
+   import PaycheckPage from './PaycheckPage';
+   import WhoPaid from './WhoPaid';
 
 interface Bill {
   id: string;
