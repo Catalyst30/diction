@@ -29,6 +29,9 @@ import {
    import LearningPanel, { MemoryFeed } from './LearningPanel';
 
 import BecauseOfMemory from './BecauseOfMemory';
+import TaxPage from './TaxPage';
+import PaycheckPage from './PaycheckPage';
+import WhoPaid from './WhoPaid';
 
    import { useProfile } from './auth';
    import AccountMenu from './AccountMenu';
