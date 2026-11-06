@@ -12,21 +12,30 @@ function getClient(userId) {
   const ns = nsFor(userId)
   if (clients.has(ns)) return clients.get(ns)
   if (!configured()) return null
-  const c = MemWal.create({
-    key: process.env.MEMWAL_PRIVATE_KEY,
-    accountId: process.env.MEMWAL_ACCOUNT_ID,
-    serverUrl: process.env.MEMWAL_SERVER_URL || 'https://relayer.memory.walrus.xyz',
-    namespace: ns,
-  })
-  clients.set(ns, c)
-  return c
+  try {
+    const c = MemWal.create({
+      key: process.env.MEMWAL_PRIVATE_KEY,
+      accountId: process.env.MEMWAL_ACCOUNT_ID,
+      serverUrl: process.env.MEMWAL_SERVER_URL || 'https://relayer.memory.walrus.xyz',
+      namespace: ns,
+    })
+    clients.set(ns, c)
+    return c
+  } catch (err) {
+    lastError = err?.message || String(err)
+    return null
+  }
 }
 
 export const walrusStatus = () => ({ configured: configured(), lastError, confirmedWrites: memoryAuditLog.length })
 
 async function attempt(rec, tries = 0) {
   const c = getClient(rec.userId)
-  if (!c) { rec.status = 'not_configured'; lastError = 'MEMWAL_PRIVATE_KEY / MEMWAL_ACCOUNT_ID not set'; return false }
+  if (!c) {
+    rec.status = 'not_configured'
+    lastError = lastError || 'MEMWAL_PRIVATE_KEY / MEMWAL_ACCOUNT_ID not set'
+    return false
+  }
   try {
     const r = await c.rememberAndWait(`[${rec.type}] ${rec.text}`)
     rec.status = 'confirmed'
@@ -37,8 +46,12 @@ async function attempt(rec, tries = 0) {
   } catch (err) {
     lastError = err?.message || String(err)
     console.error('Walrus write failed:', lastError)
-    if (tries < 3) { rec.status = 'retry_scheduled'; setTimeout(() => attempt(rec, tries + 1), 20000 * (tries + 1)) }
-    else rec.status = 'failed'
+    if (tries < 3) {
+      rec.status = 'retry_scheduled'
+      setTimeout(() => attempt(rec, tries + 1), 20000 * (tries + 1))
+    } else {
+      rec.status = 'failed'
+    }
     return false
   }
 }
@@ -53,8 +66,13 @@ export async function saveMemory(type, text, userId) {
 export async function recallMemories(question, limit = 8, userId) {
   const c = getClient(userId)
   if (!c) return []
-  try { return ((await c.recall({ query: question, limit })).results || []).map((m) => m.text) }
-  catch (err) { lastError = err?.message || String(err); return [] }
+  try {
+    const r = await c.recall({ query: question, limit })
+    return (r.results || []).map((m) => m.text)
+  } catch (err) {
+    lastError = err?.message || String(err)
+    return []
+  }
 }
 
 export async function hydrate(userId) {
@@ -62,6 +80,10 @@ export async function hydrate(userId) {
   if (!c || localMemories.some((m) => m.userId === userId)) return
   try {
     const r = await c.recall({ query: 'client payment paycheck tax bill', limit: 50 })
-    for (const m of r.results || []) localMemories.push({ id: m.blob_id, type: 'recalled', text: m.text, createdAt: m.created_at || '', status: 'confirmed', blobId: m.blob_id, userId })
-  } catch (err) { lastError = err?.message || String(err) }
+    for (const m of r.results || []) {
+      localMemories.push({ id: m.blob_id, type: 'recalled', text: m.text, createdAt: m.created_at || '', status: 'confirmed', blobId: m.blob_id, userId })
+    }
+  } catch (err) {
+    lastError = err?.message || String(err)
+  }
 }
