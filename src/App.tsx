@@ -108,7 +108,7 @@ export default function App() {
    const [showAccount, setShowAccount] = useState(false);
    const [showAddBill, setShowAddBill] = useState(false);
   const [taxSetAside, setTaxSetAside] = useState<number>(0);
-  const [paycheckFunded, setPaycheckFunded] = useState<number>(3200);
+  const [paycheckFunded, setPaycheckFunded] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
      const [bills, setBills] = useState<Bill[]>([]);
