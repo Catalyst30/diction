@@ -5,7 +5,7 @@ export default function LearningPanel({ learning }: { learning: any }) {
   const today = new Date().toISOString().slice(0, 10);
   const [cName, setCName] = useState('');
   const [cAmount, setCAmount] = useState('');
-  useState('today');
+    const [cDue, setCDue] = useState('');
   const [cDur, setCDur] = useState('One-time');
   const [name, setName] = useState('');
   const [expected, setExpected] = useState('');
@@ -16,12 +16,16 @@ export default function LearningPanel({ learning }: { learning: any }) {
   const lab = 'flex flex-col gap-xs text-sm font-medium text-secondary';
   const primary = 'inline-flex items-center justify-center rounded-lg bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand disabled:opacity-60';
 
-  const addClient = () => {
+   const addClient = () => {
     const a = Number(cAmount);
-    
-      if (!cName.trim()) { setNote('Please enter the client or company name.'); return; }
-     if (!(a > 0)) { setNote('Please enter an amount above zero.'); return; }
-     if (!cDue) { setNote('Please pick a valid due date. Check the day exists, for example November has only 30 days.'); return; }
+
+    if (!cName.trim()) { setNote('Please enter the client or company name.'); return; }
+    if (!(a > 0)) { setNote('Please enter an amount above zero.'); return; }
+    if (!cDue) { setNote('Please pick a valid due date. Check the day exists, for example November has only 30 days.'); return; }
+
+    learning.add({ client: cName.trim(), amount: a, expectedDate: cDue, duration: cDur });
+    setCName(''); setCAmount(''); setCDue(''); setNote('Client added.');
+  };
 
     
   const record = async () => {
