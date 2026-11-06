@@ -50,5 +50,8 @@ export function useLearning(base: any[], setBase: (f: (p: any[]) => any[]) => vo
     } catch { return 'failed'; }
   };
 
-  return { clients, stats, record };
+    const add = (c: { client: string; amount: number; expectedDate: string; duration: string }) =>
+    setBase((p) => [...p, { id: 'c_' + Date.now(), ...c, historicalLagDays: 0, reliabilityScore: 0.7, status: 'pending' }]);
+
+  return { clients, stats, record, add };
 }
