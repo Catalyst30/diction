@@ -25,21 +25,19 @@ import {
   Home
 } from 'lucide-react';
 
-   import { useLearning } from './learning';
-   import LearningPanel, { MemoryFeed } from './LearningPanel';
-
+import { useLearning } from './learning';
+import LearningPanel, { MemoryFeed } from './LearningPanel';
 import BecauseOfMemory from './BecauseOfMemory';
 
+import { useProfile } from './auth';
+import AccountMenu from './AccountMenu';
+import AddBillModal from './AddBillModal';
+import TaxPage from './TaxPage';
+import PaycheckPage from './PaycheckPage';
+import WhoPaid from './WhoPaid';
+import GuidedTour from './GuidedTour';
 
-   import { useProfile } from './auth';
-   import AccountMenu from './AccountMenu';
-   import AddBillModal from './AddBillModal';
-   import TaxPage from './TaxPage';
-   import PaycheckPage from './PaycheckPage';
-   import WhoPaid from './WhoPaid';
-   import GuidedTour from './GuidedTour';
-
-   import AlertsBanner from './AlertsBanner';
+import AlertsBanner from './AlertsBanner';
 
 interface Bill {
   id: string;
@@ -78,22 +76,6 @@ interface MemoryItem {
   blobId?: string;
 }
 
-  const COUNTRIES_OLD = [
-  'United States',
-  'United Kingdom',
-  'Canada',
-  'Australia',
-  'Germany',
-  'France',
-  'Spain',
-  'Netherlands',
-  'Singapore',
-  'Japan',
-  'Brazil',
-  'India',
-  'Other'
-];
-
 export default function App() {
   const [navTab, setNavTab] = useState<'home' | 'bills' | 'taxes' | 'paycheck' | 'learned' | 'settings'>('home');
 
@@ -127,26 +109,22 @@ export default function App() {
     } catch {}
   }, []);
 
-  
-   const [bufferBalance, setBufferBalance] = useState<number>(0);
-   const [showAccount, setShowAccount] = useState(false);
-   const [showAddBill, setShowAddBill] = useState(false);
+  const [bufferBalance, setBufferBalance] = useState<number>(0);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showAddBill, setShowAddBill] = useState(false);
   const [taxSetAside, setTaxSetAside] = useState<number>(0);
   const [paycheckFunded, setPaycheckFunded] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-     const [bills, setBills] = useState<Bill[]>([]);
-
-    const [clients, setClients] = useState<ClientPayment[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [clients, setClients] = useState<ClientPayment[]>([]);
 
   const [showLogPayment, setShowLogPayment] = useState<boolean>(false);
   const [logAmount, setLogAmount] = useState<number>(1000);
   const [logClientName, setLogClientName] = useState<string>('');
   const [recentBreakdown, setRecentBreakdown] = useState<PaymentBreakdown | null>(null);
 
-  const [connectedWallets, setConnectedWallets] = useState<Array<{ address: string; type: 'Sui' | 'EVM'; balance: number }>>([
-    
-  ]);
+  const [connectedWallets, setConnectedWallets] = useState<Array<{ address: string; type: 'Sui' | 'EVM'; balance: number }>>([]);
   const [showConnectWallet, setShowConnectWallet] = useState<boolean>(false);
   const [walletCount, setWalletCount] = useState<number>(0);
   const [newWalletAddress, setNewWalletAddress] = useState<string>('');
@@ -184,7 +162,7 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!showAdminProofs) return;
     fetch('/api/tatum/admin/audit-blobs')
       .then(res => res.json())
@@ -193,6 +171,7 @@ export default function App() {
       })
       .catch(() => {});
   }, [showAdminProofs, memories]);
+
   const learning = useLearning(clients, setClients, memories, setMemories);
   const billsDueBeforePayday = bills.reduce((acc, b) => acc + b.amount, 0);
 
@@ -207,7 +186,7 @@ export default function App() {
   const isGapAlert = rawSafeToSpend < 0;
 
   const processNewPayment = (amount: number, clientName: string) => {
-       learning.record(clientName, new Date().toISOString().slice(0, 10));
+    learning.record(clientName, new Date().toISOString().slice(0, 10));
     const taxPart = Math.round(amount * (taxRate / 100));
     let remaining = amount - taxPart;
 
@@ -223,7 +202,7 @@ export default function App() {
     const safeSpendPart = remaining - bufferPart;
 
     setTaxSetAside(prev => prev + taxPart);
-       setBufferBalance(prev => prev + amount);
+    setBufferBalance(prev => prev + amount);
     setPaycheckFunded(prev => prev + paycheckPart);
 
     const breakdown: PaymentBreakdown = {
@@ -272,7 +251,7 @@ export default function App() {
             buffer: bufferBalance,
             upcomingBills: billsDueBeforePayday,
             nextPaycheck: targetPaycheck,
-                       userName,
+            userName,
             clients: learning.stats.map((s) => ({ name: s.name, seen: s.n, avgLag: s.avgLag, before: s.before, trust: s.after })),
             nextBill: [...bills].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
           }
@@ -302,12 +281,11 @@ export default function App() {
     { id: 'bills', label: 'Bills', icon: Calendar },
     { id: 'taxes', label: 'Taxes', icon: DollarSign },
     { id: 'paycheck', label: 'Paycheck', icon: Wallet },
-        { id: 'learned', label: 'Memory', icon: Sparkles },
+    { id: 'learned', label: 'Memory', icon: Sparkles },
   ] as const;
 
   return (
     <div className="min-h-screen bg-secondary text-primary font-sans flex flex-col text-lg">
-      {/* 1. Toast Recipe: bg-primary, border-secondary, shadow-lg, rounded-lg, text-fg-success-primary icon */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 flex items-start gap-sm rounded-lg border border-secondary bg-primary p-lg shadow-lg max-w-md">
           <CheckCircle2 className="mt-xxs size-6 shrink-0 text-fg-success-primary" />
@@ -365,7 +343,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Desktop tabs (hidden on phones) */}
+      {/* Desktop tabs */}
       <nav className="hidden md:block bg-primary border-b border-secondary">
         <div className="max-w-7xl mx-auto px-xl flex items-center gap-lg">
           {navItems.map(item => (
@@ -408,187 +386,10 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-lg md:px-xl py-xl md:py-2xl pb-28 md:pb-2xl space-y-xl md:space-y-2xl">
-        {/* Setup Flow Modal / Overlay if not done */}
-        {!isSetupDone && (
-          /* Card Recipe: rounded-xl border border-secondary bg-primary p-xl */
-          <section className="rounded-xl border border-secondary bg-primary p-2xl shadow-xs space-y-xl">
-            <div className="flex items-center justify-between border-b border-secondary pb-lg">
-              <div>
-                <h2 className="text-heading-sm font-semibold text-primary">Let's set up your personal budget</h2>
-                <p className="text-md text-tertiary">Step {setupStep} of 5</p>
-              </div>
-              {/* Progress Bar Recipe: track bg-tertiary rounded-full, fill bg-brand-solid */}
-              <div className="w-48 h-3 rounded-full bg-secondary overflow-hidden flex">
-                <div
-                  style={{ width: `${(setupStep / 5) * 100}%` }}
-                  className="h-full bg-brand-solid rounded-full transition-all"
-                />
-              </div>
-            </div>
-
-            {setupStep === 1 && (
-              /* Input & Field Recipe: label text-sm font-medium text-secondary, input bg-primary border-primary rounded-md */
-              <div className="flex flex-col gap-sm max-w-xl">
-                <label className="text-lg font-medium text-secondary">What is your first name?</label>
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={e => setUserName(e.target.value)}
-                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary placeholder:text-placeholder border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
-                  placeholder="e.g. Alex"
-                />
-                <button
-                  onClick={() => setSetupStep(2)}
-                  className="mt-md inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  Continue
-                </button>
-              </div>
-            )}
-
-            {setupStep === 2 && (
-              /* Select Recipe: rounded-md bg-primary border-primary */
-              <div className="flex flex-col gap-sm max-w-xl">
-                <label className="text-lg font-medium text-secondary">Which country are you based in?</label>
-                <select
-                  value={country}
-                  onChange={e => setCountry(e.target.value)}
-                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
-                >
-                  {COUNTRIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <div className="flex gap-md mt-md">
-                  <button
-                    onClick={() => setSetupStep(1)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(3)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {setupStep === 3 && (
-              <div className="flex flex-col gap-sm max-w-xl">
-                <label className="text-lg font-medium text-secondary">
-                  What percent of your income goes to tax?
-                </label>
-                <p className="text-xs text-tertiary">
-                  Type a number. This is an estimate you can change anytime.
-                </p>
-                <div className="flex items-center gap-sm">
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    value={taxRate}
-                    onChange={e => setTaxRate(Number(e.target.value))}
-                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
-                  />
-                  <span className="text-heading-xs font-bold text-primary">%</span>
-                </div>
-                <div className="flex gap-md mt-md">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(4)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {setupStep === 4 && (
-              <div className="flex flex-col gap-sm max-w-xl">
-                <label className="text-lg font-medium text-secondary">
-                  What monthly paycheck would you like to receive?
-                </label>
-                <input
-                  type="number"
-                  value={targetPaycheck}
-                  onChange={e => setTargetPaycheck(Number(e.target.value))}
-                  className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
-                />
-                <label className="text-lg font-medium text-secondary mt-md">
-                  Which day of the month is your payday?
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={paydayDay}
-                  onChange={e => setPaydayDay(Number(e.target.value))}
-                  className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
-                />
-                <div className="flex gap-md mt-md">
-                  <button
-                    onClick={() => setSetupStep(3)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(5)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {setupStep === 5 && (
-              <div className="flex flex-col gap-sm max-w-xl">
-                <h3 className="text-lg font-semibold text-primary">Your baseline monthly bills are ready:</h3>
-                <ul className="space-y-sm text-md text-secondary">
-                  {bills.map(b => (
-                    <li key={b.id} className="flex justify-between border-b border-secondary py-xs">
-                      <span>{b.name} (Due {b.dueDate})</span>
-                      <span className="font-bold text-primary">${b.amount}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex gap-md pt-md">
-                  <button
-                    onClick={() => setSetupStep(4)}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsSetupDone(true);
-                      showToast('Setup saved! Welcome to Diction.');
-                    }}
-                    className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  >
-                    Finish Setup & Start
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
         {/* ================= SECTION C: HOME SCREEN ================= */}
         {navTab === 'home' && isSetupDone && (
           <div className="space-y-2xl">
-               <AlertsBanner bills={bills} buffer={bufferBalance} />
-            {/* 3. Alert Recipe: rounded-xl bg-utility-error-50 p-xl, text-utility-error-600 icon and title */}
+            <AlertsBanner bills={bills} buffer={bufferBalance} />
             {isGapAlert && (
               <div className="flex gap-lg rounded-xl bg-utility-error-50 p-xl border border-error-subtle">
                 <AlertTriangle className="mt-xxs size-6 shrink-0 text-utility-error-600" aria-hidden="true" />
@@ -656,7 +457,6 @@ export default function App() {
 
             {/* Four Smaller Metric Cards with glowing stroke hover */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-md md:gap-xl">
-              {/* 1. Your Buffer */}
               <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Your Buffer</p>
@@ -672,7 +472,6 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 2. Bills Coming Up */}
               <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Bills Coming Up</p>
@@ -688,7 +487,6 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 3. Tax Set Aside */}
               <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Tax Set Aside</p>
@@ -704,7 +502,6 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 4. Next Paycheck */}
               <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Next Paycheck</p>
@@ -721,8 +518,6 @@ export default function App() {
               </section>
             </div>
 
-            {/* Alert / Tinted Callout Recipe for Friendly Summary */}
-           
             {recentBreakdown && (
               <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
                 <Sparkles className="mt-xxs size-6 shrink-0 text-utility-brand-600" />
@@ -745,7 +540,7 @@ export default function App() {
           </div>
         )}
 
-            {/* ================= SECTION: BILLS ================= */}
+        {/* ================= SECTION: BILLS ================= */}
         {navTab === 'bills' && (
           <div className="space-y-xl">
             <div className="flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between">
@@ -770,10 +565,9 @@ export default function App() {
 
             {bills.length > 0 && (
               <>
-                {/* Phone: one card per bill */}
                 <div className="space-y-sm md:hidden">
                   {bills.map(b => (
-                    <div key={b.id} className="rounded-xl border border-secondary bg-primary p-lg shadow-xs space-y-sm">
+                    <div key={b.id} className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs space-y-sm glow-card">
                       <div className="flex items-start justify-between gap-md">
                         <p className="min-w-0 truncate text-lg font-semibold text-primary">{b.name}</p>
                         <p className="shrink-0 text-lg font-bold text-primary">${b.amount.toLocaleString()}</p>
@@ -788,8 +582,7 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Laptop and tablet: table */}
-                <div className="hidden overflow-hidden rounded-xl border border-secondary bg-primary md:block">
+                <div className="hidden overflow-hidden rounded-2xl border border-secondary bg-primary md:block shadow-xs">
                   <table className="w-full text-left">
                     <thead className="sticky top-0 z-10 bg-secondary">
                       <tr className="border-b border-secondary">
@@ -821,133 +614,19 @@ export default function App() {
             )}
           </div>
         )}
+
         {/* ================= SECTION: TAXES ================= */}
-           {navTab === 'taxes' && <TaxPage taxRate={taxRate} setTaxRate={setTaxRate} taxSetAside={taxSetAside} country={country} showToast={showToast} />}
-        {false && (
-          <div className="space-y-xl">
-            <div>
-              <h2 className="text-heading-sm font-semibold text-primary">Tax Set Aside</h2>
-              <p className="text-md text-tertiary">
-                We take your estimated tax percentage out of every single payment as it lands, so you are never surprised.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
-                <p className="text-sm font-medium text-tertiary">Currently Quarantined for Taxes</p>
-                <p className="text-heading-xl font-semibold text-primary">
-                  ${taxSetAside.toLocaleString()}
-                </p>
-                <div className="rounded-md bg-secondary p-lg border border-secondary text-md text-secondary">
-                  <span className="font-semibold text-primary">Your Tax Rate: {taxRate}%</span>
-                  <p className="mt-xs text-xs text-tertiary">Estimate only, not tax advice.</p>
-                </div>
-              </section>
-
-              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
-                <p className="text-heading-xs font-semibold text-primary">Adjust Your Estimated Rate</p>
-                <p className="text-sm text-tertiary">
-                  Change your rate anytime. Future payments will automatically follow this percentage.
-                </p>
-                <div className="flex items-center gap-md">
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    value={taxRate}
-                    onChange={e => setTaxRate(Number(e.target.value))}
-                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
-                  />
-                  <span className="text-heading-xs font-bold text-primary">%</span>
-                </div>
-                <button
-                  onClick={() => showToast('Tax rate updated.')}
-                  className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  Save Tax Rate
-                </button>
-              </section>
-            </div>
-          </div>
-        )}
+        {navTab === 'taxes' && <TaxPage taxRate={taxRate} setTaxRate={setTaxRate} taxSetAside={taxSetAside} country={country} showToast={showToast} />}
 
         {/* ================= SECTION: MY PAYCHECK ================= */}
-           {navTab === 'paycheck' && <PaycheckPage target={targetPaycheck} setTarget={setTargetPaycheck} day={paydayDay} setDay={setPaydayDay} funded={paycheckFunded} showToast={showToast} onPay={() => showToast('Paycheck transfer prepared for your connected wallet to approve.')} />}
-        {false && (
-          <div className="space-y-xl">
-            <div>
-              <h2 className="text-heading-sm font-semibold text-primary">My Personal Paycheck</h2>
-              <p className="text-md text-tertiary">
-                Your buffer turns irregular lump sums into a calm, steady salary paid on the same day every month.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
-                <p className="text-sm font-medium text-tertiary">Pay Yourself Card</p>
-                <p className="text-heading-xl font-semibold text-success-primary">
-                  ${paycheckFunded.toLocaleString()}
-                </p>
-                <p className="text-md text-secondary">
-                  Scheduled for payday on the {paydayDay}st of the month.
-                </p>
-                <button
-                  onClick={() => {
-                    showToast('Paycheck transfer prepared for your connected wallet to approve.');
-                  }}
-                  className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring w-full"
-                >
-                  <TrendingUp className="size-6 shrink-0 text-fg-white" />
-                  <span>Pay yourself now</span>
-                </button>
-                <p className="text-xs text-tertiary text-center">
-                  Prepares the transfer in your own wallet. Diction never moves money on its own.
-                </p>
-              </section>
-
-              <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
-                <p className="text-heading-xs font-semibold text-primary">Monthly Paycheck Settings</p>
-                <div className="flex flex-col gap-xs">
-                  <label className="text-sm font-medium text-secondary">
-                    Target Monthly Amount ($)
-                  </label>
-                  <input
-                    type="number"
-                    value={targetPaycheck}
-                    onChange={e => setTargetPaycheck(Number(e.target.value))}
-                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
-                  />
-                </div>
-                <div className="flex flex-col gap-xs">
-                  <label className="text-sm font-medium text-secondary">
-                    Payday Day of Month (1-31)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={paydayDay}
-                    onChange={e => setPaydayDay(Number(e.target.value))}
-                    className="rounded-md bg-primary px-lg py-sm text-lg font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
-                  />
-                </div>
-                <button
-                  onClick={() => showToast('Paycheck rules saved.')}
-                  className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-lg font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  Save Paycheck Rules
-                </button>
-              </section>
-            </div>
-          </div>
-        )}
+        {navTab === 'paycheck' && <PaycheckPage target={targetPaycheck} setTarget={setTargetPaycheck} day={paydayDay} setDay={setPaydayDay} funded={paycheckFunded} showToast={showToast} onPay={() => showToast('Paycheck transfer prepared for your connected wallet to approve.')} />}
 
         {/* ================= SECTION H: WHAT DICTION LEARNED ================= */}
         {navTab === 'learned' && (
           <div className="space-y-xl">
             <div className="flex items-start justify-between gap-md">
               <div>
-                              <h2 className="text-heading-sm font-semibold text-primary">Your Memory</h2>
+                <h2 className="text-heading-sm font-semibold text-primary">Your Memory</h2>
                 <p className="mt-xs text-md text-tertiary">
                   Payment habits and notes Diction remembers about your clients, saved to Walrus. Remove anything anytime.
                 </p>
@@ -960,7 +639,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Hidden admin proof section */}
             {showAdminProofs && (
               <div className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs space-y-md">
                 <p className="text-sm font-semibold text-primary">Audit Log of Confirmed Storage Writes</p>
@@ -980,7 +658,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Teach Diction */}
             <div className="rounded-2xl border border-secondary bg-primary p-lg shadow-xs flex flex-col gap-md sm:flex-row sm:items-center">
               <input
                 type="text"
@@ -1004,14 +681,13 @@ export default function App() {
                       showToast('Saved to memory.');
                     });
                 }}
-                className="inline-flex w-full items-center justify-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[52px] text-md font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring sm:w-auto shrink-0"
+                className="inline-flex w-full items-center justify-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[52px] text-md font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring sm:w-auto shrink-0 glow-btn"
               >
                 Save memory
               </button>
             </div>
 
             <LearningPanel learning={learning} />
-
             <MemoryFeed memories={memories} onDelete={deleteMemory} />
           </div>
         )}
@@ -1024,14 +700,14 @@ export default function App() {
               <p className="text-md text-tertiary">Edit your personal setup anytime.</p>
             </div>
 
-            <section className="rounded-xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
+            <section className="rounded-2xl border border-secondary bg-primary p-xl shadow-xs space-y-lg">
               <div className="flex flex-col gap-xs">
                 <label className="text-sm font-medium text-secondary">Your Name</label>
                 <input
                   type="text"
                   value={userName}
                   onChange={e => setUserName(e.target.value)}
-                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                  className="rounded-xl bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
                 />
               </div>
 
@@ -1040,7 +716,7 @@ export default function App() {
                 <select
                   value={country}
                   onChange={e => setCountry(e.target.value)}
-                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                  className="rounded-xl bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
                 >
                   {COUNTRIES.map(c => (
                     <option key={c} value={c}>{c}</option>
@@ -1054,13 +730,13 @@ export default function App() {
                   type="number"
                   value={taxRate}
                   onChange={e => setTaxRate(Number(e.target.value))}
-                  className="rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
+                  className="rounded-xl bg-primary px-lg py-sm text-lg text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-40 min-h-[56px]"
                 />
               </div>
 
               <button
                 onClick={() => showToast('Profile settings saved.')}
-                className="inline-flex items-center justify-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                className="inline-flex items-center justify-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn"
               >
                 Save all changes
               </button>
@@ -1069,105 +745,16 @@ export default function App() {
         )}
       </main>
 
-      {/* ================= 7. Dialog / Modal Recipe: fixed inset-0 bg-overlay opacity-70 + centered max-w-lg rounded-lg bg-primary shadow-2xl ================= */}
-      {false && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
-          <div className="fixed inset-0 bg-overlay opacity-70" onClick={() => setShowConnectWallet(false)} />
-          <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-primary shadow-2xl border border-secondary">
-            <header className="flex items-start justify-between gap-lg border-b border-secondary p-xl">
-              <h2 className="text-lg font-semibold text-primary">Connect your wallet</h2>
-              <button
-                onClick={() => setShowConnectWallet(false)}
-                className="text-tertiary hover:text-primary p-xs"
-              >
-                <X className="size-6" />
-              </button>
-            </header>
+      <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setBufferBalance} onCount={setWalletCount} />
+      <AccountMenu open={showAccount} onClose={() => setShowAccount(false)} taxRate={taxRate} onOpenTour={() => setShowTour(true)} />
+      <AddBillModal open={showAddBill} onClose={() => setShowAddBill(false)} onSave={(b) => { setBills(prev => [...prev, { id: 'b_' + Date.now(), name: b.name, amount: b.amount, dueDate: b.dueDate, recurring: (b.recurring === 'one-time' ? 'one-time' : 'monthly') }]); showToast('Bill added.'); }} />
+      <GuidedTour open={showTour} onClose={() => setShowTour(false)} onNavigateTab={(t) => setNavTab(t)} />
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-xl text-sm text-secondary space-y-lg">
-              {/* Alert Tinted Callout Recipe inside Modal */}
-              <div className="flex gap-lg rounded-xl bg-utility-brand-50 p-xl border border-utility-brand-200">
-                <Shield className="mt-xxs size-5 shrink-0 text-utility-brand-600" />
-                <p className="text-sm font-semibold text-utility-brand-600 leading-relaxed">
-                  Diction watches your wallet. Your money stays with you. We never hold or move your funds, and we never ask for your recovery phrase or private keys.
-                </p>
-              </div>
-
-              <div className="space-y-sm">
-                <label className="text-sm font-medium text-secondary">Connected Wallets</label>
-                {connectedWallets.map((w, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-md rounded-md border border-secondary bg-secondary">
-                    <div>
-                      <div className="text-md font-semibold text-primary">{w.type} Wallet</div>
-                      <div className="text-xs font-mono text-tertiary">{w.address}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-md font-bold text-success-primary">${w.balance.toLocaleString()}</div>
-                      <div className="text-xs text-tertiary">USDC / USDT</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-sm border-t border-secondary pt-md">
-                <label className="text-sm font-medium text-secondary">Add another wallet address</label>
-                <div className="flex gap-sm">
-                  <select
-                    value={newWalletType}
-                    onChange={e => setNewWalletType(e.target.value as 'Sui' | 'EVM')}
-                    className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring min-h-[56px]"
-                  >
-                    <option value="Sui">Sui Wallet</option>
-                    <option value="EVM">EVM (MetaMask / Ethereum)</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={newWalletAddress}
-                    onChange={e => setNewWalletAddress(e.target.value)}
-                    placeholder="Paste public wallet address (0x...)"
-                    className="rounded-md bg-primary px-lg py-sm text-sm text-primary border border-primary flex-1 min-h-[56px] focus-visible:ring-2 focus-visible:ring-focus-ring"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <footer className="flex justify-end gap-sm border-t border-secondary p-xl">
-              <button
-                onClick={() => setShowConnectWallet(false)}
-                className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  if (!newWalletAddress.trim()) return;
-                  const newW = {
-                    address: newWalletAddress.trim().slice(0, 8) + '...' + newWalletAddress.trim().slice(-4),
-                    type: newWalletType,
-                    balance:0
-                  };
-                  setConnectedWallets(prev => [...prev, newW]);
-                  
-                  setNewWalletAddress('');
-                  showToast(`${newWalletType} wallet connected and watching.`);
-                }}
-                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                Watch wallet
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
-         <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setBufferBalance} onCount={setWalletCount} />
-         <AccountMenu open={showAccount} onClose={() => setShowAccount(false)} taxRate={taxRate} onOpenTour={() => setShowTour(true)} />
-   <AddBillModal open={showAddBill} onClose={() => setShowAddBill(false)} onSave={(b) => { setBills(prev => [...prev, { id: 'b_' + Date.now(), name: b.name, amount: b.amount, dueDate: b.dueDate, recurring: (b.recurring === 'one-time' ? 'one-time' : 'monthly') }]); showToast('Bill added.'); }} />
-         <GuidedTour open={showTour} onClose={() => setShowTour(false)} onNavigateTab={(t) => setNavTab(t)} />
       {/* Modal: Log a Payment */}
       {showLogPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
           <div className="fixed inset-0 bg-overlay opacity-70" onClick={() => setShowLogPayment(false)} />
-          <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-primary shadow-2xl border border-secondary">
+          <div className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-primary shadow-2xl border border-secondary">
             <header className="flex items-start justify-between gap-lg border-b border-secondary p-xl">
               <h2 className="text-lg font-semibold text-primary">New payment received</h2>
               <button
@@ -1184,8 +771,7 @@ export default function App() {
               </p>
 
               <div className="flex flex-col gap-sm">
-                  <WhoPaid names={clients.map((c) => c.client)} value={logClientName} onChange={setLogClientName} /> 
-               
+                <WhoPaid names={clients.map((c) => c.client)} value={logClientName} onChange={setLogClientName} /> 
               </div>
 
               <div className="flex flex-col gap-sm">
@@ -1194,7 +780,7 @@ export default function App() {
                   type="number"
                   value={logAmount}
                   onChange={e => setLogAmount(Number(e.target.value))}
-                  className="rounded-md bg-primary px-lg py-sm text-sm font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
+                  className="rounded-xl bg-primary px-lg py-sm text-sm font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
                 />
               </div>
             </div>
@@ -1202,7 +788,7 @@ export default function App() {
             <footer className="flex justify-end gap-sm border-t border-secondary p-xl">
               <button
                 onClick={() => setShowLogPayment(false)}
-                className="inline-flex items-center gap-sm rounded-lg bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                className="inline-flex items-center gap-sm rounded-xl bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 Cancel
               </button>
@@ -1211,7 +797,7 @@ export default function App() {
                   processNewPayment(logAmount, logClientName || 'Other client');
                   setShowLogPayment(false);
                 }}
-                className="inline-flex items-center gap-sm rounded-lg border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                className="inline-flex items-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn"
               >
                 Sort payment into buffer
               </button>
@@ -1221,18 +807,18 @@ export default function App() {
       )}
 
       {/* Floating round button: Ask Diction */}
-     <button
-  onClick={() => setIsAssistantOpen(true)}
-  aria-label="Ask Diction"
-  className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-solid text-primary-on-brand shadow-lg hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring md:size-auto md:gap-sm md:px-lg md:py-md md:font-semibold"
->
-  <MessageCircle className="size-6 shrink-0 text-fg-white" />
-  <span className="hidden md:inline text-lg">Ask Diction</span>
-</button>
+      <button
+        onClick={() => setIsAssistantOpen(true)}
+        aria-label="Ask Diction"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-solid text-primary-on-brand shadow-lg hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring md:size-auto md:gap-sm md:px-lg md:py-md md:font-semibold glow-btn"
+      >
+        <MessageCircle className="size-6 shrink-0 text-fg-white" />
+        <span className="hidden md:inline text-lg">Ask Diction</span>
+      </button>
 
       {/* Assistant Chat Panel */}
       {isAssistantOpen && (
-        <div className="fixed bottom-40 md:bottom-24 left-4 right-4 md:left-auto md:right-6 z-50 md:w-full md:max-w-md bg-primary border border-secondary rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
+        <div className="fixed bottom-40 md:bottom-24 left-4 right-4 md:left-auto md:right-6 z-50 md:w-full md:max-w-md bg-primary border border-secondary rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
           <header className="bg-secondary p-lg border-b border-secondary flex items-center justify-between">
             <div className="flex items-center gap-sm">
               <Sparkles className="size-5 text-brand-primary shrink-0" />
@@ -1274,7 +860,7 @@ export default function App() {
             {chatLog.map((c, i) => (
               <div
                 key={i}
-                className={`p-md rounded-md ${
+                className={`p-md rounded-2xl ${
                   c.sender === 'assistant'
                     ? 'bg-secondary text-primary border border-secondary'
                     : 'bg-brand-solid text-primary-on-brand font-medium ml-auto max-w-[85%]'
@@ -1294,11 +880,11 @@ export default function App() {
                 if (e.key === 'Enter') handleAskAssistant(chatQuestion);
               }}
               placeholder="Ask anything about your money..."
-              className="rounded-md bg-secondary px-lg py-sm text-sm text-primary placeholder:text-placeholder border border-primary flex-1 focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="rounded-xl bg-secondary px-lg py-sm text-sm text-primary placeholder:text-placeholder border border-primary flex-1 focus-visible:ring-2 focus-visible:ring-focus-ring"
             />
             <button
               onClick={() => handleAskAssistant(chatQuestion)}
-              className="rounded-md bg-brand-solid text-primary-on-brand px-lg py-sm font-semibold flex items-center justify-center shrink-0 hover:bg-brand-solid-hover"
+              className="rounded-xl bg-brand-solid text-primary-on-brand px-lg py-sm font-semibold flex items-center justify-center shrink-0 hover:bg-brand-solid-hover glow-btn"
             >
               <Send className="size-4 text-fg-white" />
             </button>
@@ -1307,8 +893,8 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-secondary bg-primary mt-auto py-lg text-center text-md text-secondary">
-        Diction
+      <footer className="border-t border-secondary bg-primary mt-auto py-lg text-center text-xs text-secondary">
+        © Diction · Autonomous Financial Safety for Freelancers & Web3 Builders
       </footer>
     </div>
   );
