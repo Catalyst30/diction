@@ -239,9 +239,7 @@ export default function GuidedTour({
   };
 
   const handleBack = () => {
-    if (!isFirst) {
-      setStepIndex(prev => prev - 1);
-    }
+    if (!isFirst) setStepIndex(prev => prev - 1);
   };
 
   const handleJumpToTab = () => {
@@ -265,15 +263,9 @@ export default function GuidedTour({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity"
-        onClick={handleSkip}
-      />
+      <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md transition-opacity" onClick={handleSkip} />
 
-      {/* Main Tour Card with Glowing Accent */}
       <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-indigo-500/30 bg-white shadow-2xl transition-all duration-300 dark:border-indigo-500/25 dark:bg-slate-900 my-auto shadow-indigo-500/10">
-        {/* Top Segmented Stepper Header */}
         <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800">
           <div
             className="h-full bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 transition-all duration-500 ease-out"
@@ -281,7 +273,6 @@ export default function GuidedTour({
           />
         </div>
 
-        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800 sm:px-8">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 shadow-xs border border-indigo-200/50 dark:border-indigo-800/50">
@@ -311,9 +302,7 @@ export default function GuidedTour({
           </button>
         </div>
 
-        {/* Modal Body */}
         <div className="p-5 sm:p-8 space-y-6 max-h-[68vh] overflow-y-auto">
-          {/* Visual Showcase Card */}
           <div
             className="relative overflow-hidden rounded-2xl p-5 sm:p-6 transition-all duration-500 border border-slate-200/80 dark:border-slate-800 shadow-xs"
             style={{
@@ -352,7 +341,6 @@ export default function GuidedTour({
             </div>
           </div>
 
-          {/* Text Content */}
           <div className="space-y-2.5">
             <h4 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
               {current.title}
@@ -365,7 +353,6 @@ export default function GuidedTour({
             </p>
           </div>
 
-          {/* How to Navigate Callout */}
           <div className="rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 p-4 border border-indigo-100 dark:border-indigo-900/40 space-y-1.5">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
               <Compass className="size-4 shrink-0" />
@@ -376,7 +363,6 @@ export default function GuidedTour({
             </p>
           </div>
 
-          {/* Key Bullet Highlights */}
           <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
               Key Capabilities
@@ -392,9 +378,7 @@ export default function GuidedTour({
           </div>
         </div>
 
-        {/* Modal Footer with "Do Not Ask Again" Checkbox & Navigation */}
         <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:px-8">
-          {/* Top Row: "Do not ask again" checkbox and step dots */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
             <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300 select-none">
               <input
@@ -411,7 +395,6 @@ export default function GuidedTour({
               <span>Do not show this popup on future logins</span>
             </label>
 
-            {/* Step Indicators */}
             <div className="flex items-center gap-1.5">
               {TOUR_STEPS.map((_, i) => (
                 <button
@@ -420,7 +403,7 @@ export default function GuidedTour({
                   className={`h-2 rounded-full transition-all duration-300 ${
                     i === stepIndex
                       ? 'w-6 bg-indigo-600 dark:bg-indigo-500'
-                      : 'w-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600'
+                      : 'w-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700'
                   }`}
                   aria-label={`Go to slide ${i + 1}`}
                 />
@@ -428,7 +411,6 @@ export default function GuidedTour({
             </div>
           </div>
 
-          {/* Bottom Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-2">
             <button
               onClick={handleNeverShowAgain}
@@ -451,7 +433,7 @@ export default function GuidedTour({
               {!isFirst && (
                 <button
                   onClick={handleBack}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 transition-colors"
                 >
                   <ArrowLeft className="size-4" />
                   <span>Back</span>
