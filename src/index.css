@@ -1,0 +1,35 @@
+/* The design-system CSS variables every token class resolves to. Must stay the
+   first statement — CSS @import is only valid ahead of other rules. */
+@import '../design-tokens/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tatum foundation — read through the tokens, never hardcoded. The full system
+   (component anatomy, states, layout) is in the `tatum-design` skill. */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+}
+html { font-size: clamp(14px, 0.6vw + 12px, 17px); scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; overflow-x: hidden; transition: background-color .2s, color .2s; }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
