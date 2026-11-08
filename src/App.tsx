@@ -116,13 +116,12 @@ export default function App() {
     setIsSetupDone(true);
   }, [profile?.email, profile?.country, profile?.targetPaycheck]);
 
-  // Open guided tour automatically for new sign-ins or sign-ups
+  // Open guided tour automatically on login unless the user selected "Do not ask again"
   useEffect(() => {
     try {
-      const tourCompleted = localStorage.getItem('diction_tour_completed');
-      if (!tourCompleted) {
-        // Small delay so page renders comfortably
-        const timer = setTimeout(() => setShowTour(true), 600);
+      const doNotAsk = localStorage.getItem('diction_do_not_ask_again') === 'true';
+      if (!doNotAsk) {
+        const timer = setTimeout(() => setShowTour(true), 400);
         return () => clearTimeout(timer);
       }
     } catch {}
@@ -316,15 +315,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Slim Header */}
-      <header className="border-b border-secondary bg-primary sticky top-0 z-30 shadow-xs">
+      {/* Slim Luxury Header */}
+      <header className="border-b border-secondary bg-primary/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-lg py-md flex items-center justify-between gap-md">
           <div className="flex items-center gap-md min-w-0">
-            <span className="flex size-10 items-center justify-center rounded-full bg-brand-solid shrink-0">
-              <Shield className="size-6 text-fg-white" />
+            <span className="flex size-10 items-center justify-center rounded-2xl bg-indigo-600 shadow-md shadow-indigo-600/25 shrink-0 glow-btn">
+              <Shield className="size-6 text-white" />
             </span>
-            <span className="text-heading-sm font-bold tracking-tight">Diction</span>
-            <p className="hidden md:block text-md text-secondary font-medium">
+            <div className="flex items-center gap-2">
+              <span className="text-heading-sm font-bold tracking-tight">Diction</span>
+              <span className="hidden sm:flex size-2 rounded-full bg-emerald-500 animate-pulse" title="System Online" />
+            </div>
+            <p className="hidden md:block text-xs text-secondary font-medium pl-2 border-l border-secondary">
               Earn and spend wisely, without going broke.
             </p>
           </div>
@@ -332,17 +334,17 @@ export default function App() {
           <div className="flex items-center gap-sm shrink-0">
             <button
               onClick={() => setShowTour(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/90 px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-xs hover:bg-indigo-100 hover:border-indigo-300 dark:border-indigo-800/60 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60 transition-all"
-              title="Site Guide & Features"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-indigo-200/90 bg-indigo-50/90 px-3.5 py-2 text-xs font-bold text-indigo-700 shadow-xs hover:bg-indigo-100 hover:border-indigo-400 dark:border-indigo-800/80 dark:bg-indigo-950/70 dark:text-indigo-300 dark:hover:bg-indigo-900 transition-all glow-btn"
+              title="Site Guide & Navigation Tour"
             >
-              <Sparkles className="size-3.5 text-indigo-500" />
-              <span className="hidden sm:inline">Site Guide</span>
+              <Sparkles className="size-3.5 text-indigo-500 animate-pulse" />
+              <span className="hidden sm:inline">Guide & Tour</span>
               <span className="sm:hidden">Guide</span>
             </button>
             <ThemeToggle />
             <button
               onClick={() => setShowConnectWallet(true)}
-              className="relative inline-flex size-11 items-center justify-center rounded-full bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="relative inline-flex size-11 items-center justify-center rounded-2xl bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn"
               title="Wallets"
             >
               <Wallet className="size-5 text-brand-primary" />
@@ -354,7 +356,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setShowAccount(true)}
-              className="inline-flex size-11 items-center justify-center rounded-full bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="inline-flex size-11 items-center justify-center rounded-2xl bg-primary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn"
               title="Settings"
             >
               <Settings className="size-5 text-secondary" />
@@ -599,84 +601,123 @@ export default function App() {
               </div>
             )}
 
-            {/* Hero: Safe to Spend */}
-            <section className="rounded-3xl bg-brand-solid p-xl shadow-lg text-white">
-              <div className="flex items-start justify-between gap-md">
-                <p className="text-sm font-semibold uppercase tracking-wider opacity-80">
-                  Safe to spend
-                </p>
-                <button
-                  onClick={() => setShowLogPayment(true)}
-                  className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-primary px-md py-xs text-md font-semibold text-brand-primary shadow-xs focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  <Plus className="size-5 shrink-0" />
-                  Log payment
-                </button>
+            {/* Hero: Safe to Spend with Mind-blowing gradient & glowing stroke */}
+            <section
+              className="relative overflow-hidden rounded-3xl p-6 sm:p-10 shadow-2xl text-white border border-indigo-400/25"
+              style={{
+                background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%)'
+              }}
+            >
+              <div className="absolute -top-24 -right-24 size-72 rounded-full bg-indigo-400/20 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 size-72 rounded-full bg-purple-500/20 blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur-md px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-indigo-200 border border-white/15">
+                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Safe to Spend Today
+                    </span>
+                    <span className="text-xs text-indigo-200/80 hidden sm:inline">Guaranteed Liquid</span>
+                  </div>
+
+                  <button
+                    onClick={() => setShowLogPayment(true)}
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-slate-900 shadow-lg hover:bg-slate-50 transition-all glow-btn self-start sm:self-auto"
+                  >
+                    <Plus className="size-4 shrink-0 text-indigo-600" />
+                    <span>Log client payment</span>
+                  </button>
+                </div>
+
+                <div>
+                  <p className="text-5xl sm:text-6xl font-black tracking-tight drop-shadow-sm">
+                    ${safeToSpend.toLocaleString()}
+                  </p>
+                  <p className="mt-2 text-sm sm:text-base text-indigo-100/90 font-medium max-w-xl">
+                    After your taxes ({taxRate}%), upcoming bills (${billsDueBeforePayday.toLocaleString()}), and monthly paycheck (${targetPaycheck.toLocaleString()}) are fully reserved.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-white/10">
+                  <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white border border-white/10">
+                    <span className="size-2 rounded-full bg-emerald-400" />
+                    {isGapAlert ? 'Hold off on non-essential spending' : safeToSpend < 1000 ? 'Caution: buffer is tight' : "Financially healthy · Safe to spend"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-indigo-200 border border-white/5">
+                    Buffer: ${bufferBalance.toLocaleString()}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-indigo-200 border border-white/5">
+                    Taxes Quarantined: ${taxSetAside.toLocaleString()}
+                  </span>
+                </div>
               </div>
-
-              <p className="mt-md text-heading-2xl font-bold tracking-tight">
-                ${safeToSpend.toLocaleString()}
-              </p>
-              <p className="mt-sm text-md opacity-90">
-                After your bills, taxes and paycheck are covered.
-              </p>
-
-             {(bufferBalance > 0 || bills.length > 0) && (
-  <span className="mt-lg inline-flex items-center gap-sm rounded-full bg-white/20 px-md py-xs text-md font-semibold">
-    <span className="size-2.5 rounded-full bg-white" />
-    {isGapAlert ? 'Hold off on spending' : safeToSpend < 1000 ? 'Be careful' : "You're doing well"}
-  </span>
-)}
             </section>
 
-            {/* Four Smaller Cards */}
+            {/* Four Smaller Metric Cards with glowing stroke hover */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-md md:gap-xl">
               {/* 1. Your Buffer */}
-              <section className="rounded-2xl border border-secondary bg-primary p-lg md:p-xl shadow-xs">
+              <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-tertiary">Your Buffer</p>
-                  <Wallet className="size-6 text-brand-primary shrink-0" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Your Buffer</p>
+                  <span className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                    <Wallet className="size-5 shrink-0" />
+                  </span>
                 </div>
-                <p className="mt-md text-heading-xs font-semibold text-primary">
-                  ${bufferBalance.toLocaleString()}
-                </p>
-                <p className="mt-xxs text-xs text-tertiary">All income lands here first</p>
+                <div className="mt-4">
+                  <p className="text-2xl sm:text-3xl font-black text-primary">
+                    ${bufferBalance.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-tertiary">All income lands here first</p>
+                </div>
               </section>
 
               {/* 2. Bills Coming Up */}
-              <section className="rounded-2xl border border-secondary bg-primary p-lg md:p-xl shadow-xs">
+              <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-tertiary">Bills Coming Up</p>
-                  <Calendar className="size-6 text-warning-primary shrink-0" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Bills Coming Up</p>
+                  <span className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                    <Calendar className="size-5 shrink-0" />
+                  </span>
                 </div>
-                <p className="mt-md text-heading-xs font-semibold text-primary">
-                  ${billsDueBeforePayday.toLocaleString()}
-                </p>
-                <p className="mt-xxs text-xs text-tertiary">Due before next payday</p>
+                <div className="mt-4">
+                  <p className="text-2xl sm:text-3xl font-black text-primary">
+                    ${billsDueBeforePayday.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-tertiary">Due before next payday</p>
+                </div>
               </section>
 
               {/* 3. Tax Set Aside */}
-              <section className="rounded-2xl border border-secondary bg-primary p-lg md:p-xl shadow-xs">
+              <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-tertiary">Tax Set Aside</p>
-                  <Lock className="size-6 text-brand-primary shrink-0" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Tax Set Aside</p>
+                  <span className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+                    <Lock className="size-5 shrink-0" />
+                  </span>
                 </div>
-                <p className="mt-md text-heading-xs font-semibold text-primary">
-                  ${taxSetAside.toLocaleString()}
-                </p>
-                <p className="mt-xxs text-xs text-tertiary">Estimate only, not tax advice</p>
+                <div className="mt-4">
+                  <p className="text-2xl sm:text-3xl font-black text-primary">
+                    ${taxSetAside.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-tertiary">{taxRate}% auto-quarantined</p>
+                </div>
               </section>
 
               {/* 4. Next Paycheck */}
-              <section className="rounded-2xl border border-secondary bg-primary p-lg md:p-xl shadow-xs">
+              <section className="rounded-3xl border border-secondary bg-primary p-5 sm:p-6 shadow-xs glow-card flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-tertiary">Next Paycheck</p>
-                  <TrendingUp className="size-6 text-success-primary shrink-0" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-tertiary">Next Paycheck</p>
+                  <span className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+                    <TrendingUp className="size-5 shrink-0" />
+                  </span>
                 </div>
-                <p className="mt-md text-heading-xs font-semibold text-primary">
-                  ${paycheckFunded.toLocaleString()}
-                </p>
-                <p className="mt-xxs text-xs text-tertiary">Payday on the {paydayDay}st</p>
+                <div className="mt-4">
+                  <p className="text-2xl sm:text-3xl font-black text-primary">
+                    ${paycheckFunded.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-tertiary">Payday on the {paydayDay}st</p>
+                </div>
               </section>
             </div>
 
@@ -714,9 +755,9 @@ export default function App() {
               </div>
               <button
                 onClick={() => setShowAddBill(true)}
-                className="inline-flex w-full items-center justify-center gap-sm whitespace-nowrap rounded-xl border border-transparent bg-brand-solid px-xl py-sm min-h-[52px] text-lg font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring sm:w-auto sm:shrink-0"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-700 transition-all glow-btn sm:shrink-0"
               >
-                <Plus className="size-6 shrink-0 text-fg-white" />
+                <Plus className="size-5 shrink-0 text-white" />
                 <span>Add a bill</span>
               </button>
             </div>

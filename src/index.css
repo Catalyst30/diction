@@ -33,3 +33,47 @@ body { -webkit-font-smoothing: antialiased; overflow-x: hidden; transition: back
 .animate-slide-in-left {
   animation: slideInLeft 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Glowing Button & Card Stroke Effects on cursor hover */
+.glow-btn {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glow-btn:hover {
+  box-shadow: 0 0 0 2.5px rgba(99, 102, 241, 0.6), 0 0 24px rgba(99, 102, 241, 0.45), 0 4px 15px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1.5px);
+}
+
+.glow-btn:active {
+  transform: translateY(0);
+}
+
+.glow-btn-emerald:hover {
+  box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.6), 0 0 24px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1.5px);
+}
+
+.glow-btn-purple:hover {
+  box-shadow: 0 0 0 2.5px rgba(168, 85, 247, 0.6), 0 0 24px rgba(168, 85, 247, 0.45);
+  transform: translateY(-1.5px);
+}
+
+.glow-card {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glow-card:hover {
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.3), 0 12px 28px -5px rgba(99, 102, 241, 0.12);
+  transform: translateY(-2px);
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}

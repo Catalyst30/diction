@@ -15,9 +15,9 @@ export default function LearningPanel({ learning }: { learning: any }) {
   const [busy, setBusy] = useState(false);
   const [addNote, setAddNote] = useState('');
   const [recNote, setRecNote] = useState('');
-  const field = 'rounded-md bg-primary px-lg py-sm text-lg text-primary border border-primary min-h-[56px] w-full';
-  const lab = 'flex flex-col gap-xs text-sm font-medium text-secondary';
-  const primary = 'inline-flex items-center justify-center rounded-lg bg-brand-solid px-lg py-sm min-h-[56px] text-lg font-semibold text-primary-on-brand disabled:opacity-60';
+  const field = 'rounded-xl bg-primary px-lg py-sm text-base text-primary border border-primary min-h-[52px] w-full';
+  const lab = 'flex flex-col gap-xs text-xs font-bold uppercase tracking-wider text-secondary';
+  const primary = 'inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-lg py-sm min-h-[52px] text-base font-bold text-white shadow-md shadow-indigo-600/25 hover:bg-indigo-700 disabled:opacity-60 transition-all glow-btn';
 
   const addClient = () => {
     const a = Number(cAmount);

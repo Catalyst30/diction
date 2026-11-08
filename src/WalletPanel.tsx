@@ -124,7 +124,7 @@ export default function WalletPanel({ open, onClose, safeToSpend, onBalance, onC
     const feed = [...seen, ...all.flatMap((d) => d.feed)].sort((a, b) => b.ts - a.ts);
   const weekOut = feed.filter((f) => f.dir === 'out' && f.ts > Date.now() - 7 * 864e5 && ['USDC', 'USDT', 'DAI'].includes(f.coin)).reduce((s, f) => s + f.amount, 0);
   const over = weekOut > safeToSpend && weekOut > 0;
-  const btn = 'flex-1 min-w-[140px] rounded-lg border border-primary bg-primary px-lg py-md min-h-[64px] text-lg font-semibold text-primary shadow-xs hover:bg-primary-hover';
+  const btn = 'flex-1 min-w-[140px] rounded-2xl border border-secondary bg-primary px-lg py-md min-h-[56px] text-base font-semibold text-primary shadow-xs hover:bg-primary-hover transition-all glow-btn';
   const chooser = !wallets.length || adding;
 
   return (

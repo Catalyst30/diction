@@ -8,7 +8,7 @@ export default function AccountMenu({ open, onClose, taxRate, onOpenTour }: { op
   let wallets: { type: string; address: string }[] = [];
   try { wallets = JSON.parse(localStorage.getItem('diction_wallets') || '[]'); } catch {}
   const close = () => { setView('menu'); onClose(); };
-  const btn = 'w-full rounded-lg border border-primary bg-primary px-lg py-sm min-h-[56px] text-left text-lg font-semibold text-primary hover:bg-primary-hover';
+  const btn = 'w-full rounded-2xl border border-secondary bg-primary px-lg py-sm min-h-[52px] text-left text-base font-semibold text-primary hover:bg-primary-hover transition-all glow-card';
   const rows: [string, string][] = [
     ['Name', profile?.name || '-'], ['Email', profile?.email || '-'], ['Country', profile?.country || '-'],
     ['Tax rate', `${taxRate}%`], ['Work', profile?.work || '-'],
