@@ -43,7 +43,6 @@ export default function PaycheckPage({
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40 mb-2">
@@ -70,7 +69,6 @@ export default function PaycheckPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Scheduled Paycheck Card */}
         <section
           className="lg:col-span-5 flex flex-col justify-between gap-6 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl"
           style={{
@@ -99,7 +97,6 @@ export default function PaycheckPage({
               </p>
             </div>
 
-            {/* Funded Progress Bar */}
             <div className="rounded-2xl bg-white/10 backdrop-blur-md p-4 border border-white/15 space-y-2">
               <div className="flex justify-between text-xs font-bold text-emerald-100">
                 <span>Buffer Funding Progress</span>
@@ -113,7 +110,6 @@ export default function PaycheckPage({
               </div>
             </div>
 
-            {/* Pay Yourself Now Button with Glowing Hover */}
             <button
               onClick={onPay}
               className="w-full flex items-center justify-center gap-2 rounded-2xl bg-white text-slate-900 py-4 px-6 text-sm font-black shadow-lg hover:bg-slate-50 glow-btn"
@@ -128,7 +124,6 @@ export default function PaycheckPage({
           </p>
         </section>
 
-        {/* Right Column: Settings */}
         <section className="lg:col-span-7 flex flex-col justify-between gap-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="space-y-6">
             <div>
@@ -138,7 +133,6 @@ export default function PaycheckPage({
               </p>
             </div>
 
-            {/* Monthly Amount Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Target Monthly Amount
@@ -156,7 +150,6 @@ export default function PaycheckPage({
               </div>
             </div>
 
-            {/* Quick Presets */}
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Quick Presets
@@ -178,7 +171,6 @@ export default function PaycheckPage({
               </div>
             </div>
 
-            {/* Payday Selector */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Day of the Month
@@ -198,7 +190,6 @@ export default function PaycheckPage({
             </div>
           </div>
 
-          {/* Action Button */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               disabled={!changed || !(Number(amt) >= 0)}
