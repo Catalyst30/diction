@@ -37,10 +37,8 @@ export default function AddBillModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal Dialog */}
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900 my-auto">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
@@ -62,7 +60,6 @@ export default function AddBillModal({
         </div>
 
         <div className="space-y-4 py-6">
-          {/* Bill Name */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               Bill or Expense Name
@@ -82,7 +79,6 @@ export default function AddBillModal({
             </div>
           </div>
 
-          {/* Amount */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               Amount ($)
@@ -104,7 +100,6 @@ export default function AddBillModal({
             </div>
           </div>
 
-          {/* Due Date & Frequency */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -143,7 +138,6 @@ export default function AddBillModal({
           )}
         </div>
 
-        {/* Action Button */}
         <div className="pt-2">
           <button
             onClick={save}
