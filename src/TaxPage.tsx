@@ -27,7 +27,6 @@ export default function TaxPage({
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/40 mb-2">
@@ -52,7 +51,6 @@ export default function TaxPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Current Quarantined Vault Card */}
         <section
           className="lg:col-span-5 flex flex-col justify-between gap-6 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl"
           style={{
@@ -81,7 +79,6 @@ export default function TaxPage({
               </p>
             </div>
 
-            {/* Live Calculation Preview Box */}
             <div className="rounded-2xl bg-white/10 backdrop-blur-md p-4 border border-white/15 space-y-3">
               <div className="flex items-center justify-between text-xs font-bold text-indigo-200">
                 <span>SIMULATOR ({usd(sampleIncome)} INVOICE)</span>
@@ -105,7 +102,6 @@ export default function TaxPage({
           </p>
         </section>
 
-        {/* Right Column: Rate Adjustment & Benchmarks */}
         <section className="lg:col-span-7 flex flex-col justify-between gap-6 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -122,7 +118,6 @@ export default function TaxPage({
               </div>
             </div>
 
-            {/* Slider */}
             <div className="space-y-2">
               <input
                 type="range"
@@ -140,7 +135,6 @@ export default function TaxPage({
               </div>
             </div>
 
-            {/* Quick Benchmark Pills */}
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 Common Freelance Benchmarks
@@ -162,7 +156,6 @@ export default function TaxPage({
               </div>
             </div>
 
-            {/* Use Country Estimate Button */}
             <button
               onClick={() => setDraft(defaultCountryRate)}
               className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
@@ -172,7 +165,6 @@ export default function TaxPage({
             </button>
           </div>
 
-          {/* Action Button with Glowing Stroke */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               disabled={draft === taxRate}
