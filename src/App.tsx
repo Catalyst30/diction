@@ -35,6 +35,7 @@ import AddBillModal from './AddBillModal';
 import TaxPage from './TaxPage';
 import PaycheckPage from './PaycheckPage';
 import WhoPaid from './WhoPaid';
+import NumberField from './NumberField';
 import GuidedTour from './GuidedTour';
 
 import AlertsBanner from './AlertsBanner';
@@ -109,7 +110,9 @@ export default function App() {
     } catch {}
   }, []);
 
-  const [bufferBalance, setBufferBalance] = useState<number>(0);
+  const [manualBuffer, setManualBuffer] = useState<number>(0);
+  const [walletBuffer, setWalletBuffer] = useState<number>(0);
+  const bufferBalance = manualBuffer + walletBuffer;
   const [showAccount, setShowAccount] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
   const [taxSetAside, setTaxSetAside] = useState<number>(0);
@@ -120,7 +123,8 @@ export default function App() {
   const [clients, setClients] = useState<ClientPayment[]>([]);
 
   const [showLogPayment, setShowLogPayment] = useState<boolean>(false);
-  const [logAmount, setLogAmount] = useState<number>(1000);
+  const [logAmount, setLogAmount] = useState<number>(0);
+  const [wipeBuffer, setWipeBuffer] = useState<boolean>(false);
   const [logClientName, setLogClientName] = useState<string>('');
   const [recentBreakdown, setRecentBreakdown] = useState<PaymentBreakdown | null>(null);
 
@@ -184,8 +188,9 @@ export default function App() {
   const rawSafeToSpend = bufferBalance - billsDueBeforePayday - taxSetAside - targetPaycheck + conservativeExpectedIncome;
   const safeToSpend = Math.max(0, rawSafeToSpend);
   const isGapAlert = rawSafeToSpend < 0;
+  const billsExceedBuffer = billsDueBeforePayday > bufferBalance;
 
-  const processNewPayment = (amount: number, clientName: string) => {
+  const processNewPayment = (amount: number, clientName: string, wipe = false) => {
     learning.record(clientName, new Date().toISOString().slice(0, 10));
     const taxPart = Math.round(amount * (taxRate / 100));
     let remaining = amount - taxPart;
@@ -202,7 +207,7 @@ export default function App() {
     const safeSpendPart = remaining - bufferPart;
 
     setTaxSetAside(prev => prev + taxPart);
-    setBufferBalance(prev => prev + amount);
+    setManualBuffer(prev => (wipe ? amount : prev + amount));
     setPaycheckFunded(prev => prev + paycheckPart);
 
     const breakdown: PaymentBreakdown = {
@@ -231,7 +236,7 @@ export default function App() {
       })
       .catch(() => {});
 
-    showToast(`Payment of $${amount.toLocaleString()} received and sorted safely.`);
+    showToast(wipe ? `Previous buffer wiped. Your buffer now starts at $${(walletBuffer + amount).toLocaleString()}.` : `Payment of $${amount.toLocaleString()} received and sorted safely.`);
   };
 
   const handleAskAssistant = async (queryText: string) => {
@@ -390,7 +395,7 @@ export default function App() {
         {navTab === 'home' && isSetupDone && (
           <div className="space-y-2xl">
             <AlertsBanner bills={bills} buffer={bufferBalance} />
-            {isGapAlert && (
+            {billsExceedBuffer && (
               <div className="flex gap-lg rounded-xl bg-utility-error-50 p-xl border border-error-subtle">
                 <AlertTriangle className="mt-xxs size-6 shrink-0 text-utility-error-600" aria-hidden="true" />
                 <div>
@@ -443,7 +448,7 @@ export default function App() {
                 <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-white/10">
                   <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white border border-white/10">
                     <span className="size-2 rounded-full bg-emerald-400" />
-                    {isGapAlert ? 'Hold off on non-essential spending' : safeToSpend < 1000 ? 'Caution: buffer is tight' : "Financially healthy · Safe to spend"}
+                    {bufferBalance === 0 && billsDueBeforePayday === 0 ? 'Log a payment to get started' : isGapAlert ? 'Hold off on non-essential spending' : safeToSpend < 1000 ? 'Caution: buffer is tight' : "Financially healthy · Safe to spend"}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-indigo-200 border border-white/5">
                     Buffer: ${bufferBalance.toLocaleString()}
@@ -745,7 +750,7 @@ export default function App() {
         )}
       </main>
 
-      <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setBufferBalance} onCount={setWalletCount} />
+      <WalletPanel open={showConnectWallet} onClose={() => setShowConnectWallet(false)} safeToSpend={safeToSpend} onBalance={setWalletBuffer} onCount={setWalletCount} />
       <AccountMenu open={showAccount} onClose={() => setShowAccount(false)} taxRate={taxRate} onOpenTour={() => setShowTour(true)} />
       <AddBillModal open={showAddBill} onClose={() => setShowAddBill(false)} onSave={(b) => { setBills(prev => [...prev, { id: 'b_' + Date.now(), name: b.name, amount: b.amount, dueDate: b.dueDate, recurring: (b.recurring === 'one-time' ? 'one-time' : 'monthly') }]); showToast('Bill added.'); }} />
       <GuidedTour open={showTour} onClose={() => setShowTour(false)} onNavigateTab={(t) => setNavTab(t)} />
@@ -776,28 +781,62 @@ export default function App() {
 
               <div className="flex flex-col gap-sm">
                 <label className="text-sm font-medium text-secondary">Payment Amount ($)</label>
-                <input
-                  type="number"
+                <NumberField
                   value={logAmount}
-                  onChange={e => setLogAmount(Number(e.target.value))}
+                  onChange={setLogAmount}
+                  autoFocus
                   className="rounded-xl bg-primary px-lg py-sm text-sm font-semibold text-primary border border-primary focus-visible:ring-2 focus-visible:ring-focus-ring w-full min-h-[56px]"
                 />
               </div>
+
+              {manualBuffer > 0 && (
+                <div className="flex flex-col gap-sm">
+                  <p className="text-sm font-medium text-secondary">
+                    You already have ${manualBuffer.toLocaleString()} in your buffer. What should happen to it?
+                  </p>
+                  <div role="radiogroup" className="grid gap-sm sm:grid-cols-2">
+                    {[
+                      { wipe: false, title: 'Add to my buffer', total: bufferBalance + logAmount },
+                      { wipe: true, title: 'Wipe previous buffer', total: walletBuffer + logAmount },
+                    ].map(o => (
+                      <button
+                        key={String(o.wipe)}
+                        type="button"
+                        role="radio"
+                        aria-checked={wipeBuffer === o.wipe}
+                        onClick={() => setWipeBuffer(o.wipe)}
+                        className={`flex flex-col gap-xs rounded-xl border p-lg text-left transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring ${
+                          wipeBuffer === o.wipe ? 'border-brand bg-utility-brand-50' : 'border-primary bg-primary hover:bg-primary-hover'
+                        }`}
+                      >
+                        <span className="text-sm font-semibold text-primary">{o.title}</span>
+                        <span className="text-xs text-tertiary">New buffer: ${o.total.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {walletBuffer > 0 && (
+                    <p className="text-xs text-tertiary">Your wallet balance (${Math.round(walletBuffer).toLocaleString()}) always stays in your buffer.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <footer className="flex justify-end gap-sm border-t border-secondary p-xl">
               <button
-                onClick={() => setShowLogPayment(false)}
+                onClick={() => { setShowLogPayment(false); setLogAmount(0); setWipeBuffer(false); }}
                 className="inline-flex items-center gap-sm rounded-xl bg-primary px-lg py-sm min-h-[56px] text-sm font-semibold text-secondary border border-primary shadow-xs hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 Cancel
               </button>
               <button
+                disabled={!(logAmount > 0)}
                 onClick={() => {
-                  processNewPayment(logAmount, logClientName || 'Other client');
+                  processNewPayment(logAmount, logClientName || 'Other client', wipeBuffer);
                   setShowLogPayment(false);
+                  setLogAmount(0);
+                  setWipeBuffer(false);
                 }}
-                className="inline-flex items-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn"
+                className="inline-flex items-center gap-sm rounded-xl border border-transparent bg-brand-solid px-lg py-sm min-h-[56px] text-sm font-semibold text-primary-on-brand shadow-xs hover:bg-brand-solid-hover focus-visible:ring-2 focus-visible:ring-focus-ring glow-btn disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Sort payment into buffer
               </button>
