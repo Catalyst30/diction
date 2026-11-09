@@ -1,0 +1,33 @@
+/* The design-system CSS variables every token class resolves to. Must stay the
+   first statement — CSS @import is only valid ahead of other rules. */
+@import '../design-tokens/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tatum foundation — read through the tokens, never hardcoded. The full system
+   (component anatomy, states, layout) is in the `tatum-design` skill. */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+}
+html { font-size: clamp(14px, 0.6vw + 12px, 17px); scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; overflow-x: hidden; transition: background-color .2s, color .2s; }
+
+/* ---- Diction polish ---- */
+.app-header { background: color-mix(in srgb, var(--color-bg-primary) 88%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.hero-card { position: relative; overflow: hidden; background: linear-gradient(135deg, #2A1DAA 0%, #4832E7 52%, #7B6CF5 100%); }
+.hero-card::before, .hero-card::after { content: ''; position: absolute; border-radius: 9999px; pointer-events: none; background: rgba(255,255,255,.10); }
+.hero-card::before { width: 280px; height: 280px; right: -90px; top: -120px; }
+.hero-card::after { width: 190px; height: 190px; right: 70px; bottom: -120px; background: rgba(255,255,255,.07); }
+.hero-card > * { position: relative; z-index: 1; }
+.stat-card { transition: transform .2s ease, box-shadow .2s ease; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(16,24,40,.28); }
+.icon-chip { display: inline-flex; height: 40px; width: 40px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; background: var(--color-bg-secondary); }
+.slide-in { animation: dictionSlide .38s cubic-bezier(.22,.9,.3,1) both; }
+@keyframes dictionSlide { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@media (max-width: 640px) { input, select, textarea { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .slide-in { animation: none; } .stat-card { transition: none; } }
