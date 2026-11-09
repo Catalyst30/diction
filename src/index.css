@@ -35,7 +35,6 @@ body { -webkit-font-smoothing: antialiased; overflow-x: hidden; transition: back
 
 /* Glowing Button & Card Stroke Effects on cursor hover */
 .glow-btn {
-  position: relative;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
