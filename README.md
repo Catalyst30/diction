@@ -220,6 +220,3 @@ Tatum-hackathon-/
 - Secrets live in `.env`, which is git-ignored. Never commit real keys.
 - Personal profile data is designed to live on Walrus Memory, encrypted and owned by the user.
 
-## License
-
-MIT
