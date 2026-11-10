@@ -212,8 +212,6 @@ Tatum-hackathon-/
 └── tests/       unit tests
 ```
 
-More detail: [Problem](docs/problem.md), [Data model](docs/data-model.md), [Architecture](docs/architecture.md).
-
 ---
 
 ## Security and privacy
