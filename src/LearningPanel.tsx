@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 
 const trustColor = (t: number) => (t >= 0.8 ? '#12B76A' : t >= 0.5 ? '#F79009' : '#F04438');
 
-export default function LearningPanel({ learning }: { learning: any }) {
+const usd = (n: number) => {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return '$' + v.toLocaleString('en-US', Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+export default function LearningPanel({ learning, onPaid }: { learning: any; onPaid?: (name: string, amount: number) => void }) {
   const names: string[] = learning.stats.map((s: any) => s.name);
   const today = new Date().toISOString().slice(0, 10);
   const [cName, setCName] = useState('');
@@ -10,7 +15,6 @@ export default function LearningPanel({ learning }: { learning: any }) {
   const [cDue, setCDue] = useState('');
   const [cDur, setCDur] = useState('One-time');
   const [name, setName] = useState('');
-  const [expected, setExpected] = useState('');
   const [received, setReceived] = useState(today);
   const [busy, setBusy] = useState(false);
   const [addNote, setAddNote] = useState('');
@@ -30,12 +34,17 @@ export default function LearningPanel({ learning }: { learning: any }) {
     setCName(''); setCAmount(''); setCDue(''); setAddNote('Client added.');
   };
 
+  const pending = learning.stats.filter((s: any) => s.status === 'pending');
+  const who: string = name && pending.some((s: any) => s.name === name) ? name : pending[0]?.name || '';
+
   const record = async () => {
-    const who = name || names[0];
-    if (!who) { setRecNote('Add a client first.'); return; }
+    const row = learning.stats.find((s: any) => s.name === who);
+    if (!row) { setRecNote('Add a client first.'); return; }
     setBusy(true); setRecNote('');
-    const s = await learning.record(who, received, expected || undefined);
-    setRecNote(s === 'confirmed' ? 'Saved to Walrus. Diction has updated how much it trusts this client.' : s === 'skipped' ? 'Pick a client and a date first.' : s.startsWith('error') ? 'Could not save: ' + s.slice(7) : 'Recorded. It will finish saving to Walrus shortly.');
+    const s = await learning.record(who, received);
+    if (s !== 'skipped') onPaid?.(who, row.amount);
+    const saved = s === 'confirmed' ? 'Saved to Walrus.' : s.startsWith('error') ? 'Could not save to Walrus: ' + s.slice(7) : 'It will finish saving to Walrus shortly.';
+    setRecNote(s === 'skipped' ? 'Pick a client and a date first.' : `${usd(row.amount)} from ${who} was added to your buffer. ${saved}`);
     setBusy(false);
   };
 
@@ -77,6 +86,14 @@ export default function LearningPanel({ learning }: { learning: any }) {
               {learning.stats.map((s: any) => {
                 const t = s.after as number;
                 const color = trustColor(t);
+                const paid = s.status === 'received';
+                const overdue = !paid && !!s.dueDate && s.dueDate < today;
+                const chip = paid
+                  ? { text: 'Paid', bg: '#ECFDF3', fg: '#067647' }
+                  : overdue
+                  ? { text: 'Overdue', bg: '#FEF3F2', fg: '#B42318' }
+                  : { text: 'Awaiting payment', bg: '#FFFAEB', fg: '#B54708' };
+                const cap = 'text-xs font-bold uppercase tracking-wider text-tertiary';
                 return (
                   <div key={s.name} className="rounded-lg border border-secondary bg-secondary p-md flex flex-col gap-sm">
                     <div className="flex items-start justify-between gap-md">
@@ -89,6 +106,21 @@ export default function LearningPanel({ learning }: { learning: any }) {
                         <p className="text-sm text-secondary">trust</p>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-sm sm:grid-cols-3">
+                      <div>
+                        <p className={cap}>Will pay you</p>
+                        <p className="text-lg font-semibold text-primary">{usd(s.amount)}</p>
+                      </div>
+                      <div>
+                        <p className={cap}>Due date</p>
+                        <p className="text-lg font-semibold text-primary">{pretty(s.dueDate) || 'Not set'}</p>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className={cap}>Status</p>
+                        <span className="mt-xs inline-flex rounded-full px-md py-xs text-sm font-semibold" style={{ background: chip.bg, color: chip.fg }}>{chip.text}</span>
+                        {s.duration && <span className="ml-sm text-sm text-secondary">{s.duration}</span>}
+                      </div>
+                    </div>
                     <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: 'rgba(127,127,127,.25)' }}>
                       <div className="h-full rounded-full" style={{ width: `${Math.round(t * 100)}%`, background: color }} />
                     </div>
@@ -98,15 +130,22 @@ export default function LearningPanel({ learning }: { learning: any }) {
             </div>
 
             <div className="border-t border-secondary pt-md flex flex-col gap-sm">
-              <p className="text-lg font-semibold text-primary">Record a payment</p>
-              <div className="grid gap-sm sm:grid-cols-3">
-                <label className={lab}>Client
-                  <select className={field} value={name || names[0]} onChange={(e) => setName(e.target.value)}>{names.map((n) => <option key={n}>{n}</option>)}</select>
-                </label>
-                <label className={lab}>Date it was due (optional)<input type="date" className={field} value={expected} onChange={(e) => setExpected(e.target.value)} /></label>
-                <label className={lab}>Date it was paid<input type="date" className={field} value={received} onChange={(e) => setReceived(e.target.value)} /></label>
-              </div>
-              <button onClick={record} disabled={busy} className={primary}>{busy ? 'Saving to Walrus...' : 'Record payment timing'}</button>
+              <p className="text-lg font-semibold text-primary">When did a client pay?</p>
+              {pending.length === 0 ? (
+                <p className="text-lg text-secondary">Every client is marked as paid. Add a new client above to record another payment.</p>
+              ) : (
+                <>
+                  <div className="grid gap-sm sm:grid-cols-2">
+                    <label className={lab}>Who paid?
+                      <select className={field} value={who} onChange={(e) => setName(e.target.value)}>
+                        {pending.map((p: any) => <option key={p.name} value={p.name}>{p.name} · {usd(p.amount)}</option>)}
+                      </select>
+                    </label>
+                    <label className={lab}>Date they paid<input type="date" className={field} value={received} onChange={(e) => setReceived(e.target.value)} /></label>
+                  </div>
+                  <button onClick={record} disabled={busy || !received} className={primary}>{busy ? 'Saving...' : 'Mark as paid'}</button>
+                </>
+              )}
               {recNote && <p className="rounded-lg bg-secondary px-lg py-sm text-lg text-secondary">{recNote}</p>}
             </div>
           </>
