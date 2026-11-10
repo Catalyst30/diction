@@ -29,7 +29,7 @@ import { useLearning } from './learning';
 import LearningPanel, { MemoryFeed } from './LearningPanel';
 import BecauseOfMemory from './BecauseOfMemory';
 
-import { useProfile } from './auth';
+import { useProfile, saveProfile } from './auth';
 import AccountMenu from './AccountMenu';
 import AddBillModal from './AddBillModal';
 import TaxPage from './TaxPage';
@@ -77,6 +77,12 @@ interface MemoryItem {
   blobId?: string;
 }
 
+const money = (n: number) => {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return '$' + v.toLocaleString('en-US', Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const listJoin = (a: string[]) => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+
 export default function App() {
   const [navTab, setNavTab] = useState<'home' | 'bills' | 'taxes' | 'paycheck' | 'learned' | 'settings'>('home');
 
@@ -85,7 +91,7 @@ export default function App() {
   const [userName, setUserName] = useState<string>('Alex');
   const [country, setCountry] = useState<string>('United States');
   const [taxRate, setTaxRate] = useState<number>(25);
-  const [targetPaycheck, setTargetPaycheck] = useState<number>(3500);
+  const [targetPaycheck, setTargetPaycheck] = useState<number>(0);
   const [paydayDay, setPaydayDay] = useState<number>(1);
   const [showTour, setShowTour] = useState<boolean>(false);
 
@@ -186,12 +192,22 @@ export default function App() {
   );
 
   const rawSafeToSpend = bufferBalance - billsDueBeforePayday - taxSetAside - targetPaycheck + conservativeExpectedIncome;
-  const safeToSpend = Math.max(0, rawSafeToSpend);
+  const safeToSpend = Math.round(Math.max(0, rawSafeToSpend) * 100) / 100;
+  const reservedParts = [
+    taxSetAside > 0 && `taxes (${money(taxSetAside)})`,
+    billsDueBeforePayday > 0 && `upcoming bills (${money(billsDueBeforePayday)})`,
+    targetPaycheck > 0 && `your monthly paycheck (${money(targetPaycheck)})`,
+  ].filter(Boolean) as string[];
   const isGapAlert = rawSafeToSpend < 0;
   const billsExceedBuffer = billsDueBeforePayday > bufferBalance;
 
-  const processNewPayment = (amount: number, clientName: string, wipe = false) => {
-    learning.record(clientName, new Date().toISOString().slice(0, 10));
+  const savePaycheckTarget = (n: number) => {
+    setTargetPaycheck(n);
+    saveProfile({ targetPaycheck: n, paycheckSet: true });
+  };
+
+  const processNewPayment = (amount: number, clientName: string, wipe = false, skipTiming = false) => {
+    if (!skipTiming) learning.record(clientName, new Date().toISOString().slice(0, 10));
     const taxPart = Math.round(amount * (taxRate / 100));
     let remaining = amount - taxPart;
 
@@ -269,7 +285,7 @@ export default function App() {
         ...prev,
         {
           sender: 'assistant',
-          text: `You have $${safeToSpend.toLocaleString()} safe to spend today. All your upcoming bills and paycheck are covered. (Estimate only)`
+          text: `You have ${money(safeToSpend)} safe to spend today. All your upcoming bills and paycheck are covered. (Estimate only)`
         }
       ]);
     }
@@ -401,7 +417,7 @@ export default function App() {
                 <div>
                   <p className="text-lg font-semibold text-utility-error-600">Gap Alert: Bills exceed available funds</p>
                   <p className="mt-xxs text-md text-tertiary">
-                    Your bills due before payday (${billsDueBeforePayday.toLocaleString()}) are more than your current buffer balance. Hold off on any extra spending until your next invoice arrives.
+                    Your bills due before payday ({money(billsDueBeforePayday)}) are more than your current buffer balance. Hold off on any extra spending until your next invoice arrives.
                   </p>
                 </div>
               </div>
@@ -424,7 +440,7 @@ export default function App() {
                       <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
                       Safe to Spend Today
                     </span>
-                    <span className="text-xs text-indigo-200/80 hidden sm:inline">Guaranteed Liquid</span>
+                    <span className="text-xs text-indigo-200/80 hidden sm:inline">Live estimate</span>
                   </div>
 
                   <button
@@ -438,10 +454,13 @@ export default function App() {
 
                 <div>
                   <p className="text-5xl sm:text-6xl font-black tracking-tight drop-shadow-sm">
-                    ${safeToSpend.toLocaleString()}
+                    {money(safeToSpend)}
                   </p>
                   <p className="mt-2 text-sm sm:text-base text-indigo-100/90 font-medium max-w-xl">
-                    After your taxes ({taxRate}%), upcoming bills (${billsDueBeforePayday.toLocaleString()}), and monthly paycheck (${targetPaycheck.toLocaleString()}) are fully reserved.
+                    {reservedParts.length === 0
+                      ? 'Connect a wallet, log a payment or add a bill. This number updates live as things change.'
+                      : `After ${listJoin(reservedParts)} are set aside.`}
+                    {conservativeExpectedIncome > 0 && ` Includes ${money(conservativeExpectedIncome)} still expected from clients, counted at their trust level.`}
                   </p>
                 </div>
 
@@ -451,10 +470,10 @@ export default function App() {
                     {bufferBalance === 0 && billsDueBeforePayday === 0 ? 'Log a payment to get started' : isGapAlert ? 'Hold off on non-essential spending' : safeToSpend < 1000 ? 'Caution: buffer is tight' : "Financially healthy · Safe to spend"}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-indigo-200 border border-white/5">
-                    Buffer: ${bufferBalance.toLocaleString()}
+                    Buffer: {money(bufferBalance)}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-indigo-200 border border-white/5">
-                    Taxes Quarantined: ${taxSetAside.toLocaleString()}
+                    Taxes Quarantined: {money(taxSetAside)}
                   </span>
                 </div>
               </div>
@@ -471,7 +490,7 @@ export default function App() {
                 </div>
                 <div className="mt-4">
                   <p className="text-2xl sm:text-3xl font-black text-primary">
-                    ${bufferBalance.toLocaleString()}
+                    {money(bufferBalance)}
                   </p>
                   <p className="mt-1 text-xs text-tertiary">All income lands here first</p>
                 </div>
@@ -486,7 +505,7 @@ export default function App() {
                 </div>
                 <div className="mt-4">
                   <p className="text-2xl sm:text-3xl font-black text-primary">
-                    ${billsDueBeforePayday.toLocaleString()}
+                    {money(billsDueBeforePayday)}
                   </p>
                   <p className="mt-1 text-xs text-tertiary">Due before next payday</p>
                 </div>
@@ -501,7 +520,7 @@ export default function App() {
                 </div>
                 <div className="mt-4">
                   <p className="text-2xl sm:text-3xl font-black text-primary">
-                    ${taxSetAside.toLocaleString()}
+                    {money(taxSetAside)}
                   </p>
                   <p className="mt-1 text-xs text-tertiary">{taxRate}% auto-quarantined</p>
                 </div>
@@ -516,7 +535,7 @@ export default function App() {
                 </div>
                 <div className="mt-4">
                   <p className="text-2xl sm:text-3xl font-black text-primary">
-                    ${paycheckFunded.toLocaleString()}
+                    {money(paycheckFunded)}
                   </p>
                   <p className="mt-1 text-xs text-tertiary">Payday on the {paydayDay}st</p>
                 </div>
@@ -624,7 +643,7 @@ export default function App() {
         {navTab === 'taxes' && <TaxPage taxRate={taxRate} setTaxRate={setTaxRate} taxSetAside={taxSetAside} country={country} showToast={showToast} />}
 
         {/* ================= SECTION: MY PAYCHECK ================= */}
-        {navTab === 'paycheck' && <PaycheckPage target={targetPaycheck} setTarget={setTargetPaycheck} day={paydayDay} setDay={setPaydayDay} funded={paycheckFunded} showToast={showToast} onPay={() => showToast('Paycheck transfer prepared for your connected wallet to approve.')} />}
+        {navTab === 'paycheck' && <PaycheckPage target={targetPaycheck} setTarget={savePaycheckTarget} day={paydayDay} setDay={setPaydayDay} funded={paycheckFunded} showToast={showToast} onPay={() => showToast('Paycheck transfer prepared for your connected wallet to approve.')} />}
 
         {/* ================= SECTION H: WHAT DICTION LEARNED ================= */}
         {navTab === 'learned' && (
@@ -692,7 +711,7 @@ export default function App() {
               </button>
             </div>
 
-            <LearningPanel learning={learning} />
+            <LearningPanel learning={learning} onPaid={(name, amount) => processNewPayment(amount, name, false, true)} />
             <MemoryFeed memories={memories} onDelete={deleteMemory} />
           </div>
         )}
