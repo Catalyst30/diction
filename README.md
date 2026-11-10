@@ -153,10 +153,10 @@ The core logic has **no storage code in it**. Everything that touches the databa
 - [x] Client-delay learning
 - [x] Tatum RPC connection (Sui gRPC gateway)
 - [x] Memories saved to Walrus mainnet (see the proof above)
-- [ ] Walrus Memory adapter wired into the app (`src/storage/walrusMemory.ts`)
-- [ ] Database adapter wired into the app (`src/storage/database.ts`)
-- [ ] Web interface
-- [ ] Money layer (how the buffer holds real funds)
+- [x] Walrus Memory adapter wired into the app (`src/storage/walrusMemory.ts`)
+- [x] Database adapter wired into the app (`src/storage/database.ts`)
+- [x] Web interface
+- [x] Money layer (how the buffer holds real funds)
 
 ---
 
