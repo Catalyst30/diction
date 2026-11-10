@@ -128,7 +128,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [country, setCountry] = useState('United States');
   const [gender, setGender] = useState('Prefer not to say');
   const [work, setWork] = useState('');
-  const [targetPaycheck, setTargetPaycheck] = useState('3500');
+  const [targetPaycheck, setTargetPaycheck] = useState('');
 
   // Step 3: Sui Wallet Connection
   const [suiWallets, setSuiWallets] = useState<any[]>([]);
@@ -273,7 +273,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     const calculatedTaxRate = taxFor(country);
-    const paycheckTargetNum = Number(targetPaycheck) || 3500;
+    const paycheckTargetNum = Number(targetPaycheck) || 0;
 
     const metadata = {
       name: name.trim(),
@@ -283,6 +283,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       work: work.trim(),
       taxRate: calculatedTaxRate,
       targetPaycheck: paycheckTargetNum,
+      paycheckSet: paycheckTargetNum > 0,
       walletAddress: effectiveWallet
     };
 
@@ -349,7 +350,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             age: 25,
             work: 'Freelancer',
             taxRate: 25,
-            targetPaycheck: 3500
+            targetPaycheck: 0
           }
         };
         try {
@@ -932,7 +933,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                             type="number"
                             min={0}
                             step={100}
-                            placeholder="3500"
+                            placeholder="0"
                             value={targetPaycheck}
                             onChange={(e) => setTargetPaycheck(e.target.value)}
                             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base font-medium text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-600/10 dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:focus:border-indigo-500 min-h-[52px]"
@@ -1253,7 +1254,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     work: m.work || 'Freelancer',
     taxRate: taxFor(m.country),
     email: user.email || '',
-    targetPaycheck: Number(m.targetPaycheck) || 3500,
+    targetPaycheck: m.paycheckSet ? Number(m.targetPaycheck) || 0 : 0,
     walletAddress: m.walletAddress || ''
   };
 
@@ -1267,4 +1268,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       {children}
     </Ctx.Provider>
   );
+}
+
+// Saves profile fields (for example the paycheck target) so they survive a reload.
+export async function saveProfile(data: Record<string, unknown>) {
+  try {
+    if (supabase) {
+      await supabase.auth.updateUser({ data });
+    } else {
+      const raw = localStorage.getItem('diction_demo_profile');
+      if (raw) {
+        const u = JSON.parse(raw);
+        u.user_metadata = { ...(u.user_metadata || {}), ...data };
+        localStorage.setItem('diction_demo_profile', JSON.stringify(u));
+      }
+    }
+  } catch {}
 }
