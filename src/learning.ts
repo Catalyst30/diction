@@ -31,7 +31,7 @@ export function useLearning(base: any[], setBase: (f: (p: any[]) => any[]) => vo
 
   const stats = base.map((c, i) => {
     const lags = obs.filter((o) => key(o.client) === key(c.client)).map((o) => o.lag);
-    return { name: c.client, n: lags.length, avgLag: lags.length ? score(lags).avg : c.historicalLagDays, before: c.reliabilityScore, after: clients[i].reliabilityScore, amount: c.amount };
+    return { name: c.client, n: lags.length, avgLag: lags.length ? score(lags).avg : c.historicalLagDays, before: c.reliabilityScore, after: clients[i].reliabilityScore, amount: c.amount, dueDate: c.expectedDate, duration: c.duration, status: c.status };
   });
 
   const record = async (name: string, received: string, expected?: string): Promise<string> => {
