@@ -6,7 +6,7 @@ Diction is a money tool for people whose income is unpredictable: freelancers, c
 
 Built for the **Walrus x Tatum Hackathon**.
 
-> **Demo video:** [Watch the demo on X](https://x.com/Valourxbt/status/2119958817643372953)
+> **Demo video:** [Watch the demo on X](https://x.com/Valourxbt/status/2120690168671973619)
 
 ---
 
